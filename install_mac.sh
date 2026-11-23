@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-#  NetControl - macOS Installer
-#  Installs .NET 8 SDK, libpcap, and builds the project
+#  NetControl - Pemasang macOS
+#  Memasang .NET 8 SDK, libpcap, dan membangun proyek
 # ═══════════════════════════════════════════════════════
 
 set -e
@@ -14,41 +14,41 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════╗"
-echo "║     NetControl - macOS Installer     ║"
+echo "║     NetControl - Pemasang macOS      ║"
 echo "╚══════════════════════════════════════╝"
 echo -e "${NC}"
 
 # ── Check Homebrew ──
 if ! command -v brew &> /dev/null; then
-    echo -e "${YELLOW}[!] Homebrew not found. Installing...${NC}"
+    echo -e "${YELLOW}[!] Homebrew tidak ditemukan. Memasang...${NC}"
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo -e "${GREEN}[OK] Homebrew installed.${NC}"
+    echo -e "${GREEN}[OK] Homebrew terpasang.${NC}"
 else
-    echo -e "${GREEN}[OK] Homebrew found.${NC}"
+    echo -e "${GREEN}[OK] Homebrew ditemukan.${NC}"
 fi
 
 # ── Install libpcap (usually pre-installed on macOS) ──
-echo -e "${YELLOW}[1/3] Checking libpcap...${NC}"
+echo -e "${YELLOW}[1/3] Memeriksa libpcap...${NC}"
 if [ -f "/usr/lib/libpcap.dylib" ] || [ -f "/usr/local/lib/libpcap.dylib" ] || [ -f "/opt/homebrew/lib/libpcap.dylib" ]; then
-    echo -e "${GREEN}[OK] libpcap found (pre-installed).${NC}"
+    echo -e "${GREEN}[OK] libpcap ditemukan (sudah terpasang).${NC}"
 else
-    echo -e "${YELLOW}    Installing libpcap via Homebrew...${NC}"
+    echo -e "${YELLOW}    Memasang libpcap melalui Homebrew...${NC}"
     brew install libpcap
-    echo -e "${GREEN}[OK] libpcap installed.${NC}"
+    echo -e "${GREEN}[OK] libpcap terpasang.${NC}"
 fi
 
 # ── Install .NET 8 SDK ──
-echo -e "${YELLOW}[2/3] Checking .NET 8 SDK...${NC}"
+echo -e "${YELLOW}[2/3] Memeriksa .NET 8 SDK...${NC}"
 if command -v dotnet &> /dev/null && dotnet --list-sdks 2>/dev/null | grep -q "^8\."; then
-    echo -e "${GREEN}[OK] .NET 8 SDK already installed.${NC}"
+    echo -e "${GREEN}[OK] .NET 8 SDK sudah terpasang.${NC}"
 else
-    echo -e "${YELLOW}    Installing .NET 8 SDK via Homebrew...${NC}"
+    echo -e "${YELLOW}    Memasang .NET 8 SDK melalui Homebrew...${NC}"
     brew install --cask dotnet-sdk
-    echo -e "${GREEN}[OK] .NET 8 SDK installed.${NC}"
+    echo -e "${GREEN}[OK] .NET 8 SDK terpasang.${NC}"
 fi
 
 # ── Build project ──
-echo -e "${YELLOW}[3/3] Building NetControl...${NC}"
+echo -e "${YELLOW}[3/3] Membangun NetControl...${NC}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/NetControl"
 dotnet restore
@@ -56,8 +56,8 @@ dotnet build --configuration Release
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║      Installation complete!          ║${NC}"
+echo -e "${GREEN}║      Instalasi selesai!              ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
 echo ""
-echo -e "Run ${CYAN}./start_mac.sh${NC} to launch NetControl."
-echo -e "${YELLOW}Note: Requires sudo for network access.${NC}"
+echo -e "Jalankan ${CYAN}./start_mac.sh${NC} untuk membuka NetControl."
+echo -e "${YELLOW}Catatan: Memerlukan sudo untuk akses jaringan.${NC}"

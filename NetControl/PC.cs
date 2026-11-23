@@ -45,7 +45,7 @@ namespace NetControl
         public PhysicalAddress Mac
         {
             get => _mac;
-            set { if (_mac != value) { _mac = value; OnPropertyChanged(); OnPropertyChanged(nameof(MacDisplay)); OnPropertyChanged(nameof(MacFormatted)); OnPropertyChanged(nameof(DeviceLabel)); } }
+            set { if (_mac != value) { _mac = value; OnPropertyChanged(); OnPropertyChanged(nameof(MacDisplay)); OnPropertyChanged(nameof(MacFormatted)); OnPropertyChanged(nameof(AutoDetectedLabel)); OnPropertyChanged(nameof(DeviceLabel)); OnPropertyChanged(nameof(DeviceTooltip)); } }
         }
 
         public string Name { get; set; } = "Unknown";
@@ -56,30 +56,138 @@ namespace NetControl
         public string Vendor
         {
             get => _vendor;
-            set { if (_vendor != value) { _vendor = value; OnPropertyChanged(); OnPropertyChanged(nameof(DeviceLabel)); } }
+            set { if (_vendor != value) { _vendor = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutoDetectedLabel)); OnPropertyChanged(nameof(DeviceLabel)); OnPropertyChanged(nameof(DeviceTooltip)); } }
         }
 
         private string _hostname;
         public string Hostname
         {
             get => _hostname;
-            set { if (_hostname != value) { _hostname = value; OnPropertyChanged(); OnPropertyChanged(nameof(DeviceLabel)); } }
+            set { if (_hostname != value) { _hostname = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutoDetectedLabel)); OnPropertyChanged(nameof(DeviceLabel)); OnPropertyChanged(nameof(DeviceTooltip)); } }
         }
 
         private DeviceType _deviceCategory = DeviceType.Unknown;
         public DeviceType DeviceCategory
         {
             get => _deviceCategory;
-            set { if (_deviceCategory != value) { _deviceCategory = value; OnPropertyChanged(); OnPropertyChanged(nameof(DeviceLabel)); OnPropertyChanged(nameof(CategoryName)); } }
+            set { if (_deviceCategory != value) { _deviceCategory = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutoDetectedLabel)); OnPropertyChanged(nameof(DeviceLabel)); OnPropertyChanged(nameof(DeviceTooltip)); OnPropertyChanged(nameof(CategoryName)); } }
         }
 
         public string CategoryName => _deviceCategory != DeviceType.Unknown ? _deviceCategory.ToString() : "Device";
+
+        private string _customLabel;
+        public string CustomLabel
+        {
+            get => _customLabel;
+            set
+            {
+                if (_customLabel != value)
+                {
+                    _customLabel = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasCustomLabel));
+                    OnPropertyChanged(nameof(DeviceLabel));
+                    OnPropertyChanged(nameof(DeviceTooltip));
+                }
+            }
+        }
+
+        public bool HasCustomLabel => !string.IsNullOrWhiteSpace(_customLabel);
+
+        private bool _isEditingLabel;
+        public bool IsEditingLabel
+        {
+            get => _isEditingLabel;
+            set
+            {
+                if (_isEditingLabel != value)
+                {
+                    _isEditingLabel = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsNotEditingLabel));
+                }
+            }
+        }
+
+        public bool IsNotEditingLabel => !_isEditingLabel;
+
+        private string _editLabelBuffer = string.Empty;
+        public string EditLabelBuffer
+        {
+            get => _editLabelBuffer;
+            set
+            {
+                if (_editLabelBuffer != value)
+                {
+                    _editLabelBuffer = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string DeviceLabel => HasCustomLabel ? TruncateWithEllipsis(_customLabel.Trim(), 55) : AutoDetectedLabel;
+
+        public string DeviceTooltip => HasCustomLabel ? $"{_customLabel.Trim()} ({AutoDetectedLabel})" : AutoDetectedLabel;
+
+        private string _lastDomain;
+        public string LastDomain
+        {
+            get => _lastDomain;
+            set
+            {
+                if (_lastDomain != value)
+                {
+                    _lastDomain = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasLastDomain));
+                    OnPropertyChanged(nameof(LastDomainDisplay));
+                }
+            }
+        }
+
+        private bool _isLastDomainBlocked;
+        public bool IsLastDomainBlocked
+        {
+            get => _isLastDomainBlocked;
+            set
+            {
+                if (_isLastDomainBlocked != value)
+                {
+                    _isLastDomainBlocked = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(LastDomainDisplay));
+                    OnPropertyChanged(nameof(LastDomainBrushHex));
+                }
+            }
+        }
+
+        public bool HasLastDomain => !string.IsNullOrEmpty(_lastDomain);
+        public string LastDomainDisplay => HasLastDomain ? (IsLastDomainBlocked ? $"🚫 {_lastDomain}" : $"🌐 {_lastDomain}") : string.Empty;
+        public string LastDomainBrushHex => IsLastDomainBlocked ? "#F85149" : "#58A6FF";
+
+        private string _activeScheduleNote = string.Empty;
+        public string ActiveScheduleNote
+        {
+            get => _activeScheduleNote;
+            set
+            {
+                string val = value ?? string.Empty;
+                if (!string.Equals(_activeScheduleNote, val, StringComparison.Ordinal))
+                {
+                    _activeScheduleNote = val;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasActiveScheduleNote));
+                }
+            }
+        }
+
+        public bool HasActiveScheduleNote => !string.IsNullOrEmpty(_activeScheduleNote);
 
         /// <summary>
         /// Computed display label for UI: combines device type, vendor, and hostname.
         /// Falls back to formatted MAC address when no identification is available.
         /// </summary>
-        public string DeviceLabel
+        public string AutoDetectedLabel
         {
             get
             {
@@ -158,12 +266,12 @@ namespace NetControl
                     }
                     else
                     {
-                        rawLabel = "Unknown Device";
+                        rawLabel = "Perangkat Tidak Dikenal";
                     }
                 }
                 else
                 {
-                    rawLabel = "Unknown Device";
+                    rawLabel = "Perangkat Tidak Dikenal";
                 }
 
                 return TruncateWithEllipsis(rawLabel, 55);
@@ -192,6 +300,11 @@ namespace NetControl
                         _block = false;
                         OnPropertyChanged(nameof(Block));
                     }
+                    if (!_redirect)
+                    {
+                        IsLastDomainBlocked = false;
+                        LastDomain = null;
+                    }
                 }
             }
         }
@@ -211,6 +324,8 @@ namespace NetControl
                         _redirect = false;
                         OnPropertyChanged(nameof(Redirect));
                         OnPropertyChanged(nameof(IsThrottlingEnabled));
+                        IsLastDomainBlocked = false;
+                        LastDomain = null;
                     }
                 }
             }
@@ -233,7 +348,7 @@ namespace NetControl
             }
         }
 
-        public string BandwidthLimitDisplay => _bandwidthLimitKb == 0 ? "Unlimited" : $"{_bandwidthLimitKb} KB/s";
+        public string BandwidthLimitDisplay => _bandwidthLimitKb == 0 ? "Tanpa Batas" : $"{_bandwidthLimitKb} KB/s";
 
         private bool _isGateway;
         public bool IsGateway
@@ -272,7 +387,7 @@ namespace NetControl
         }
 
         public bool HasRoleBadge => IsLocalPc || IsGateway;
-        public string RoleBadgeText => IsLocalPc ? "YOU" : (IsGateway ? "GATEWAY" : "");
+        public string RoleBadgeText => IsLocalPc ? "ANDA" : (IsGateway ? "GATEWAY" : "");
 
         public bool CanControl => !IsLocalPc && !IsGateway;
 
@@ -284,6 +399,8 @@ namespace NetControl
 
         private long _bytesSent;
         private long _bytesReceived;
+        private long _totalBytesSent;
+        private long _totalBytesReceived;
 
         /// <summary>Bytes sent in current monitoring cycle.</summary>
         public long BytesSent
@@ -299,14 +416,80 @@ namespace NetControl
             set => Interlocked.Exchange(ref _bytesReceived, value);
         }
 
-        public void AddBytesSent(long count) => Interlocked.Add(ref _bytesSent, count);
-        public void AddBytesReceived(long count) => Interlocked.Add(ref _bytesReceived, count);
+        public long TotalBytesSent => Interlocked.Read(ref _totalBytesSent);
+        public long TotalBytesReceived => Interlocked.Read(ref _totalBytesReceived);
+        public long TotalBytesCombined => TotalBytesReceived + TotalBytesSent;
+
+        public string TotalDownloadFormatted => FormatDataSize(TotalBytesReceived);
+        public string TotalUploadFormatted => FormatDataSize(TotalBytesSent);
+        public string TotalDataFormatted => FormatDataSize(TotalBytesCombined);
+
+        private int _dataQuotaMb = 0;
+        public int DataQuotaMb
+        {
+            get => _dataQuotaMb;
+            set
+            {
+                int clamped = Math.Max(0, value);
+                if (_dataQuotaMb != clamped)
+                {
+                    _dataQuotaMb = clamped;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DataQuotaDisplay));
+                    OnPropertyChanged(nameof(TotalDataLineDisplay));
+                    OnPropertyChanged(nameof(TotalDataTooltip));
+                    OnPropertyChanged(nameof(TotalDataBrushHex));
+                    OnPropertyChanged(nameof(IsQuotaExceeded));
+                }
+            }
+        }
+
+        public string DataQuotaDisplay => _dataQuotaMb <= 0 ? "Tanpa Batas" : $"{_dataQuotaMb} MB";
+        public bool IsQuotaExceeded => _dataQuotaMb > 0 && TotalBytesCombined >= (long)_dataQuotaMb * 1024L * 1024L;
+        public string TotalDataLineDisplay => _dataQuotaMb > 0 ? $"{TotalDataFormatted} / {_dataQuotaMb} MB" : TotalDataFormatted;
+        public string TotalDataTooltip => $"Total Unduh: {TotalDownloadFormatted} | Total Unggah: {TotalUploadFormatted} | Kuota: {DataQuotaDisplay}";
+        public string TotalDataBrushHex => IsQuotaExceeded ? "#F85149" : (TotalBytesCombined > 0 ? "#8B949E" : "#6E7681");
+
+        private string _lastReportedTotalDownText = "0 B";
+        private string _lastReportedTotalUpText = "0 B";
+        private string _lastReportedTotalCombinedText = "0 B";
+
+        public void AddBytesSent(long count)
+        {
+            Interlocked.Add(ref _bytesSent, count);
+            Interlocked.Add(ref _totalBytesSent, count);
+        }
+
+        public void AddBytesReceived(long count)
+        {
+            Interlocked.Add(ref _bytesReceived, count);
+            Interlocked.Add(ref _totalBytesReceived, count);
+        }
 
         public (long rx, long tx) ResetByteAccumulators()
         {
             long rx = Interlocked.Exchange(ref _bytesReceived, 0);
             long tx = Interlocked.Exchange(ref _bytesSent, 0);
             return (rx, tx);
+        }
+
+        public void ResetTotalData()
+        {
+            Interlocked.Exchange(ref _totalBytesReceived, 0);
+            Interlocked.Exchange(ref _totalBytesSent, 0);
+            _lastReportedTotalDownText = "0 B";
+            _lastReportedTotalUpText = "0 B";
+            _lastReportedTotalCombinedText = "0 B";
+            OnPropertyChanged(nameof(TotalBytesReceived));
+            OnPropertyChanged(nameof(TotalBytesSent));
+            OnPropertyChanged(nameof(TotalBytesCombined));
+            OnPropertyChanged(nameof(TotalDownloadFormatted));
+            OnPropertyChanged(nameof(TotalUploadFormatted));
+            OnPropertyChanged(nameof(TotalDataFormatted));
+            OnPropertyChanged(nameof(TotalDataLineDisplay));
+            OnPropertyChanged(nameof(TotalDataTooltip));
+            OnPropertyChanged(nameof(TotalDataBrushHex));
+            OnPropertyChanged(nameof(IsQuotaExceeded));
         }
 
         // ── Smoothed Rate Tracking Properties ──
@@ -411,13 +594,80 @@ namespace NetControl
                 OnPropertyChanged(nameof(UploadTrafficBrushHex));
                 OnPropertyChanged(nameof(TrafficBrushHex));
             }
+
+            string curTotalDown = TotalDownloadFormatted;
+            string curTotalUp = TotalUploadFormatted;
+            string curTotalCombined = TotalDataFormatted;
+            if (curTotalDown != _lastReportedTotalDownText ||
+                curTotalUp != _lastReportedTotalUpText ||
+                curTotalCombined != _lastReportedTotalCombinedText)
+            {
+                _lastReportedTotalDownText = curTotalDown;
+                _lastReportedTotalUpText = curTotalUp;
+                _lastReportedTotalCombinedText = curTotalCombined;
+                OnPropertyChanged(nameof(TotalBytesReceived));
+                OnPropertyChanged(nameof(TotalBytesSent));
+                OnPropertyChanged(nameof(TotalBytesCombined));
+                OnPropertyChanged(nameof(TotalDownloadFormatted));
+                OnPropertyChanged(nameof(TotalUploadFormatted));
+                OnPropertyChanged(nameof(TotalDataFormatted));
+                OnPropertyChanged(nameof(TotalDataLineDisplay));
+                OnPropertyChanged(nameof(TotalDataTooltip));
+                OnPropertyChanged(nameof(TotalDataBrushHex));
+                OnPropertyChanged(nameof(IsQuotaExceeded));
+            }
         }
 
         public static string FormatSpeed(double kbps)
         {
             if (kbps < 0.1) return "0 KB/s";
-            if (kbps >= 1024.0) return $"{kbps / 1024.0:F1} MB/s";
-            return $"{kbps:F1} KB/s";
+            if (kbps >= 1024.0) return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{kbps / 1024.0:F1} MB/s");
+            return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{kbps:F1} KB/s");
+        }
+
+        public static string FormatDataSize(long bytes)
+        {
+            if (bytes <= 0) return "0 B";
+            if (bytes < 1024) return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{bytes} B");
+            if (bytes < 1024L * 1024L) return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{bytes / 1024.0:F1} KB");
+            if (bytes < 1024L * 1024L * 1024L) return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0):F1} MB");
+            return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB");
+        }
+
+        /// <summary>
+        /// Urutan tampilan tabel: perangkat target di atas (urut angka IPv4), lalu Local Host (ANDA), lalu Gateway paling bawah.
+        /// </summary>
+        public static int CompareForDisplay(PC a, PC b)
+        {
+            if (ReferenceEquals(a, b)) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+
+            int rankCmp = GetDisplaySortRank(a).CompareTo(GetDisplaySortRank(b));
+            if (rankCmp != 0) return rankCmp;
+
+            int ipCmp = GetSortableIpv4(a.Ip).CompareTo(GetSortableIpv4(b.Ip));
+            if (ipCmp != 0) return ipCmp;
+
+            return string.Compare(a.MacFormatted, b.MacFormatted, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int GetDisplaySortRank(PC pc)
+        {
+            if (pc.IsGateway) return 2;
+            if (pc.IsLocalPc) return 1;
+            return 0;
+        }
+
+        private static ulong GetSortableIpv4(IPAddress ip)
+        {
+            if (ip == null) return ulong.MaxValue;
+            byte[] bytes = ip.GetAddressBytes();
+            if (bytes.Length == 4)
+            {
+                return ((ulong)bytes[0] << 24) | ((ulong)bytes[1] << 16) | ((ulong)bytes[2] << 8) | bytes[3];
+            }
+            return ulong.MaxValue - 1;
         }
 
         // ── INotifyPropertyChanged ──

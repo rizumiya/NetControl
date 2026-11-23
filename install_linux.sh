@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-#  NetControl - Linux Installer
-#  Installs .NET 8 SDK, libpcap, and builds the project
+#  NetControl - Pemasang Linux
+#  Memasang .NET 8 SDK, libpcap, dan membangun proyek
 # ═══════════════════════════════════════════════════════
 
 set -e
@@ -14,7 +14,7 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════╗"
-echo "║     NetControl - Linux Installer     ║"
+echo "║     NetControl - Pemasang Linux      ║"
 echo "╚══════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -26,13 +26,13 @@ elif command -v dnf &> /dev/null; then
 elif command -v pacman &> /dev/null; then
     PKG_MGR="pacman"
 else
-    echo -e "${RED}[ERROR] No supported package manager found (apt/dnf/pacman).${NC}"
+    echo -e "${RED}[GALAT] Tidak ditemukan pengelola paket yang didukung (apt/dnf/pacman).${NC}"
     exit 1
 fi
-echo -e "${GREEN}[OK] Package manager: ${PKG_MGR}${NC}"
+echo -e "${GREEN}[OK] Pengelola paket: ${PKG_MGR}${NC}"
 
 # ── Install libpcap ──
-echo -e "${YELLOW}[1/3] Installing libpcap...${NC}"
+echo -e "${YELLOW}[1/3] Memasang libpcap...${NC}"
 case $PKG_MGR in
     apt)
         sudo apt update -qq
@@ -45,14 +45,14 @@ case $PKG_MGR in
         sudo pacman -Sy --noconfirm libpcap
         ;;
 esac
-echo -e "${GREEN}[OK] libpcap installed.${NC}"
+echo -e "${GREEN}[OK] libpcap terpasang.${NC}"
 
 # ── Install .NET 8 SDK ──
-echo -e "${YELLOW}[2/3] Checking .NET 8 SDK...${NC}"
+echo -e "${YELLOW}[2/3] Memeriksa .NET 8 SDK...${NC}"
 if command -v dotnet &> /dev/null && dotnet --list-sdks 2>/dev/null | grep -q "^8\."; then
-    echo -e "${GREEN}[OK] .NET 8 SDK already installed.${NC}"
+    echo -e "${GREEN}[OK] .NET 8 SDK sudah terpasang.${NC}"
 else
-    echo -e "${YELLOW}    Installing .NET 8 SDK...${NC}"
+    echo -e "${YELLOW}    Memasang .NET 8 SDK...${NC}"
     case $PKG_MGR in
         apt)
             # Try the Ubuntu/Debian package first
@@ -70,11 +70,11 @@ else
             sudo pacman -Sy --noconfirm dotnet-sdk-8.0
             ;;
     esac
-    echo -e "${GREEN}[OK] .NET 8 SDK installed.${NC}"
+    echo -e "${GREEN}[OK] .NET 8 SDK terpasang.${NC}"
 fi
 
 # ── Build project ──
-echo -e "${YELLOW}[3/3] Building NetControl...${NC}"
+echo -e "${YELLOW}[3/3] Membangun NetControl...${NC}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/NetControl"
 dotnet restore
@@ -82,8 +82,8 @@ dotnet build --configuration Release
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║      Installation complete!          ║${NC}"
+echo -e "${GREEN}║      Instalasi selesai!              ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
 echo ""
-echo -e "Run ${CYAN}./start_linux.sh${NC} to launch NetControl."
-echo -e "${YELLOW}Note: Requires sudo for network access.${NC}"
+echo -e "Jalankan ${CYAN}./start_linux.sh${NC} untuk membuka NetControl."
+echo -e "${YELLOW}Catatan: Memerlukan sudo untuk akses jaringan.${NC}"

@@ -66,10 +66,10 @@ namespace NetControl
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                return "Please restart NetControl with 'Run as administrator' to enable packet capture and ARP redirection.";
+                return "Silakan mulai ulang NetControl dengan 'Run as administrator' (Jalankan sebagai administrator) untuk mengaktifkan penangkapan paket dan pengalihan ARP.";
             }
 
-            return "Launch with 'pkexec' or 'sudo -E ./NetControl', or grant raw socket capabilities via 'sudo setcap cap_net_raw,cap_net_admin=eip <binary>'.";
+            return "Jalankan dengan 'pkexec' atau 'sudo -E ./NetControl', atau berikan kapabilitas raw socket melalui 'sudo setcap cap_net_raw,cap_net_admin=eip <binary>'.";
         }
     }
 }

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-#  NetControl - Linux Launcher
-#  Enables IP forwarding and runs with sudo
+#  NetControl - Peluncur Linux
+#  Mengaktifkan IP forwarding dan menjalankan dengan sudo
 # ═══════════════════════════════════════════════════════
 
 set -e
@@ -18,20 +18,20 @@ BINARY="$PROJECT_DIR/bin/Release/net8.0/NetControl"
 
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════╗"
-echo "║     NetControl - Linux Launcher      ║"
+echo "║     NetControl - Peluncur Linux      ║"
 echo "╚══════════════════════════════════════╝"
 echo -e "${NC}"
 
 # ── Check if built ──
 if [ ! -f "$BINARY" ] && [ ! -f "$BINARY.dll" ]; then
-    echo -e "${RED}[ERROR] NetControl not built. Run ./install_linux.sh first.${NC}"
+    echo -e "${RED}[GALAT] NetControl belum di-build. Jalankan ./install_linux.sh terlebih dahulu.${NC}"
     exit 1
 fi
 
 # ── Check for root ──
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${YELLOW}[!] NetControl requires root privileges for network access.${NC}"
-    echo -e "${YELLOW}    Relaunching with sudo...${NC}"
+    echo -e "${YELLOW}[!] NetControl memerlukan hak akses root untuk mengakses jaringan.${NC}"
+    echo -e "${YELLOW}    Menjalankan ulang dengan sudo...${NC}"
     echo ""
     exec sudo bash "$0" "$@"
 fi
@@ -39,10 +39,10 @@ fi
 # ── Cleanup Handler ──
 cleanup() {
     echo ""
-    echo -e "${YELLOW}[Cleanup] Restoring network state...${NC}"
+    echo -e "${YELLOW}[Pembersihan] Memulihkan status jaringan...${NC}"
     if [ -n "$CURRENT_FWD" ]; then
         sysctl -w net.ipv4.ip_forward=$CURRENT_FWD > /dev/null 2>&1
-        echo -e "${GREEN}[OK] IP forwarding restored to previous state ($CURRENT_FWD).${NC}"
+        echo -e "${GREEN}[OK] IP forwarding dipulihkan ke status sebelumnya ($CURRENT_FWD).${NC}"
     fi
 
     # Flush residual tc qdiscs if tc is present
@@ -55,13 +55,13 @@ cleanup() {
 trap cleanup EXIT
 
 # ── Enable IP forwarding (required for MITM) ──
-echo -e "${YELLOW}[1/2] Enabling IP forwarding...${NC}"
+echo -e "${YELLOW}[1/2] Mengaktifkan IP forwarding...${NC}"
 CURRENT_FWD=$(cat /proc/sys/net/ipv4/ip_forward)
 sysctl -w net.ipv4.ip_forward=1 > /dev/null 2>&1
-echo -e "${GREEN}[OK] IP forwarding enabled.${NC}"
+echo -e "${GREEN}[OK] IP forwarding diaktifkan.${NC}"
 
 # ── Launch ──
-echo -e "${YELLOW}[2/2] Launching NetControl...${NC}"
+echo -e "${YELLOW}[2/2] Menjalankan NetControl...${NC}"
 echo ""
 
 cd "$PROJECT_DIR"

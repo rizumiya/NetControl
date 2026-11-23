@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
 using System.Threading;
 using NetControl.Throttling;
 using SharpPcap;
@@ -22,6 +24,7 @@ namespace NetControl
         private IBandwidthThrottler _bandwidthThrottler;
 
         public IBandwidthThrottler BandwidthThrottler => _bandwidthThrottler;
+        public bool IsSpoofing => _isSpoofing;
 
         private PcList _pcList;
         private LibPcapLiveDevice _device;
@@ -47,6 +50,10 @@ namespace NetControl
         /// <summary>Triggered when the underlying physical interface is disconnected or drops connectivity.</summary>
         public event Action<string> OnInterfaceDisconnected;
 
+        /// <summary>Triggered when a tracked device requests a domain via HTTPS (SNI), DNS, or HTTP.</summary>
+        public event Action<PC, string, string, bool> OnDomainRequested;
+
+        private readonly Dictionary<(uint, string), long> _lastDomainReportTicks = new();
         private long _lastNetworkChangeTimestamp = 0;
 
         public CArp(LibPcapLiveDevice nic, PcList pcList)
@@ -258,6 +265,8 @@ namespace NetControl
                         Array.Copy(rawPacket, 22, senderMac, 0, 6);
                         Array.Copy(rawPacket, 28, senderIp, 0, 4);
 
+                        if (!IsValidLanArpSender(senderIp, senderMac, LocalIp, SubnetMask)) continue;
+
                         bool isGateway = Tools.AreValuesEqual(senderIp, RouterIp);
                         if (isGateway && (RouterMac == null || !Tools.AreValuesEqual(RouterMac, senderMac)))
                         {
@@ -288,6 +297,48 @@ namespace NetControl
                     Console.WriteLine($"[ARP LISTENER ERROR] {ex.Message}");
                 }
             }
+        }
+
+        /// <summary>
+        /// Memvalidasi apakah pengirim ARP berasal dari perangkat unicast yang sah pada subnet lokal
+        /// (mengabaikan ARP Probe 0.0.0.0 RFC 5227, loopback, multicast, alamat jaringan/broadcast, dan MAC tidak valid).
+        /// </summary>
+        public static bool IsValidLanArpSender(byte[] senderIp, byte[] senderMac, byte[] localIp, byte[] subnetMask)
+        {
+            if (senderIp == null || senderIp.Length != 4 || senderMac == null || senderMac.Length != 6)
+            {
+                return false;
+            }
+
+            // Abaikan 0.0.0.0 (ARP Probe), 127.x.x.x (loopback), dan >= 224.0.0.0 (multicast/broadcast)
+            if (senderIp[0] == 0 || senderIp[0] == 127 || senderIp[0] >= 224)
+            {
+                return false;
+            }
+
+            // Abaikan MAC all-zero atau MAC multicast/broadcast (bit LSB oktet pertama == 1)
+            bool allZeroMac = senderMac[0] == 0 && senderMac[1] == 0 && senderMac[2] == 0 &&
+                              senderMac[3] == 0 && senderMac[4] == 0 && senderMac[5] == 0;
+            if (allZeroMac || (senderMac[0] & 0x01) != 0)
+            {
+                return false;
+            }
+
+            if (localIp != null && localIp.Length == 4 && subnetMask != null && subnetMask.Length == 4)
+            {
+                byte[] expectedNet = GetNetworkAddress(localIp, subnetMask);
+                byte[] expectedBcast = GetBroadcastAddress(localIp, subnetMask);
+                byte[] candNet = GetNetworkAddress(senderIp, subnetMask);
+
+                if (!Tools.AreValuesEqual(candNet, expectedNet) ||
+                    Tools.AreValuesEqual(senderIp, expectedNet) ||
+                    Tools.AreValuesEqual(senderIp, expectedBcast))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         // ──────────────────────────────────────────────
@@ -329,6 +380,9 @@ namespace NetControl
                     }
                 }
 
+                // Seed from OS ARP cache so sleeping Wi-Fi devices are discovered immediately
+                SeedDevicesFromOsArpCache();
+
                 // Calculate network range based on real subnet mask
                 byte[] networkAddr = GetNetworkAddress(LocalIp, SubnetMask);
                 byte[] broadcastAddr = GetBroadcastAddress(LocalIp, SubnetMask);
@@ -342,6 +396,7 @@ namespace NetControl
                                   $"Broadcast: {new IPAddress(broadcastAddr)} " +
                                   $"Hosts to scan: {maxHosts}/{totalHosts}");
 
+                // Pass 1: initial ARP sweep
                 for (uint offset = 1; offset <= maxHosts && _isDiscovering; offset++)
                 {
                     uint targetUint = networkUint + offset;
@@ -350,9 +405,28 @@ namespace NetControl
                     if (Tools.AreValuesEqual(targetBytes, LocalIp)) continue;
                     if (RouterIp != null && Tools.AreValuesEqual(targetBytes, RouterIp)) continue;
 
-                    IPAddress target = new IPAddress(targetBytes);
-                    SendArpRequest(target);
-                    Thread.Sleep(5);
+                    SendArpRequest(new IPAddress(targetBytes));
+                    Thread.Sleep(4);
+                }
+
+                // Short pause so Wi-Fi DTIM replies arrive before Pass 2
+                for (int w = 0; w < 5 && _isDiscovering; w++)
+                {
+                    Thread.Sleep(50);
+                }
+
+                // Pass 2: retry hosts that did not answer Pass 1
+                for (uint offset = 1; offset <= maxHosts && _isDiscovering; offset++)
+                {
+                    uint targetUint = networkUint + offset;
+                    byte[] targetBytes = UintToBytes(targetUint);
+
+                    if (Tools.AreValuesEqual(targetBytes, LocalIp)) continue;
+                    if (RouterIp != null && Tools.AreValuesEqual(targetBytes, RouterIp)) continue;
+                    if (_pcList.GetDeviceByIp(targetBytes) != null) continue;
+
+                    SendArpRequest(new IPAddress(targetBytes));
+                    Thread.Sleep(4);
                 }
             }
             catch (Exception ex)
@@ -368,6 +442,141 @@ namespace NetControl
             }
         }
 
+        private void SeedDevicesFromOsArpCache()
+        {
+            try
+            {
+                string output = string.Empty;
+                if (OperatingSystem.IsWindows())
+                {
+                    using var proc = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "arp",
+                        Arguments = "-a",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    });
+                    if (proc != null)
+                    {
+                        output = proc.StandardOutput.ReadToEnd();
+                        proc.WaitForExit(2000);
+                    }
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    if (File.Exists("/proc/net/arp"))
+                    {
+                        output = File.ReadAllText("/proc/net/arp");
+                    }
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    using var proc = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "arp",
+                        Arguments = "-an",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    });
+                    if (proc != null)
+                    {
+                        output = proc.StandardOutput.ReadToEnd();
+                        proc.WaitForExit(2000);
+                    }
+                }
+
+                var cached = ParseArpTableOutput(output, LocalIp, SubnetMask);
+                foreach (var (ip, mac) in cached)
+                {
+                    if (!_isDiscovering) break;
+
+                    byte[] ipBytes = ip.GetAddressBytes();
+                    bool isGateway = RouterIp != null && Tools.AreValuesEqual(ipBytes, RouterIp);
+                    if (isGateway && RouterMac == null)
+                    {
+                        RouterMac = mac.GetAddressBytes();
+                    }
+
+                    _pcList.AddDevice(new PC
+                    {
+                        Ip = ip,
+                        Mac = mac,
+                        IsGateway = isGateway,
+                        IsLocalPc = false,
+                        TimeSinceLastArp = DateTime.Now
+                    });
+
+                    SendArpRequest(ip);
+                }
+
+                if (cached.Count > 0)
+                {
+                    Console.WriteLine($"[DISCOVERY] Seeded {cached.Count} device(s) from OS ARP cache.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ARP CACHE SEED] {ex.Message}");
+            }
+        }
+
+        public static List<(IPAddress Ip, PhysicalAddress Mac)> ParseArpTableOutput(
+            string output,
+            byte[] localIp,
+            byte[] subnetMask)
+        {
+            var results = new List<(IPAddress Ip, PhysicalAddress Mac)>();
+            if (string.IsNullOrWhiteSpace(output)) return results;
+
+            var seenIps = new HashSet<string>(StringComparer.Ordinal);
+            byte[] expectedNet = (localIp != null && localIp.Length == 4 && subnetMask != null && subnetMask.Length == 4)
+                ? GetNetworkAddress(localIp, subnetMask)
+                : null;
+            byte[] expectedBcast = (localIp != null && localIp.Length == 4 && subnetMask != null && subnetMask.Length == 4)
+                ? GetBroadcastAddress(localIp, subnetMask)
+                : null;
+
+            string[] lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string line in lines)
+            {
+                Match ipMatch = Regex.Match(line, @"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b");
+                Match macMatch = Regex.Match(line, @"\b([0-9a-fA-F]{1,2}(?:[:-][0-9a-fA-F]{1,2}){5})\b");
+                if (!ipMatch.Success || !macMatch.Success) continue;
+
+                if (!IPAddress.TryParse(ipMatch.Groups[1].Value, out IPAddress ip)) continue;
+                byte[] ipBytes = ip.GetAddressBytes();
+                if (ipBytes.Length != 4) continue;
+                if (ipBytes[0] == 0 || ipBytes[0] == 127 || ipBytes[0] >= 224) continue;
+
+                if (expectedNet != null && expectedBcast != null)
+                {
+                    byte[] candNet = GetNetworkAddress(ipBytes, subnetMask);
+                    if (!Tools.AreValuesEqual(candNet, expectedNet)) continue;
+                    if (Tools.AreValuesEqual(ipBytes, expectedNet)) continue;
+                    if (Tools.AreValuesEqual(ipBytes, expectedBcast)) continue;
+                    if (Tools.AreValuesEqual(ipBytes, localIp)) continue;
+                }
+
+                string[] octets = macMatch.Groups[1].Value.Split(':', '-');
+                if (octets.Length != 6) continue;
+                string normalizedHex = string.Concat(Array.ConvertAll(octets, o => o.PadLeft(2, '0'))).ToUpperInvariant();
+                if (normalizedHex == "000000000000") continue;
+
+                if (!PhysicalAddress.TryParse(normalizedHex, out PhysicalAddress mac)) continue;
+                byte[] macBytes = mac.GetAddressBytes();
+                if (macBytes.Length != 6 || (macBytes[0] & 0x01) != 0) continue; // Skip multicast/broadcast MAC
+
+                if (seenIps.Add(ip.ToString()))
+                {
+                    results.Add((ip, mac));
+                }
+            }
+
+            return results;
+        }
+
         // ──────────────────────────────────────────────
         //  ARP Spoofing
         // ──────────────────────────────────────────────
@@ -381,6 +590,9 @@ namespace NetControl
                     Console.WriteLine("[ERROR] Router MAC not found.");
                     return;
                 }
+                // Keep Windows Kernel IP Forwarding disabled so spoofed traffic is relayed,
+                // throttled (Batas KB/s), and domain-filtered in user space by NetControl.
+                SetWindowsIpForwarding(false);
                 _isSpoofing = true;
                 _spoofingThread = new Thread(SpoofLoop) { IsBackground = true };
                 _spoofingThread.Start();
@@ -402,9 +614,6 @@ namespace NetControl
 
         private void SpoofLoop()
         {
-            // Dead MAC used to block devices — packets sent here go nowhere
-            byte[] deadMac = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
-
             try
             {
                 while (_isSpoofing)
@@ -424,12 +633,15 @@ namespace NetControl
                             currentSpoofedThisCycle.Add(target.Ip);
                             _bandwidthThrottler?.RemoveLimit(target.Ip);
 
-                            // BLOCK: Tell the device the gateway is at a dead MAC
-                            SendArpReply(target.Mac.GetAddressBytes(), target.Ip.GetAddressBytes(),
-                                        deadMac, RouterIp);
-                            // Also tell the router this device is at a dead MAC
-                            SendArpReply(RouterMac, RouterIp,
-                                        deadMac, target.Ip.GetAddressBytes());
+                            byte[] targetMac = target.Mac.GetAddressBytes();
+                            byte[] targetIp = target.Ip.GetAddressBytes();
+
+                            // BLOCK: Route device & router traffic to LocalMac via ARP Reply + unicast ARP Request
+                            // (modern Android & routers ignore mismatched deadMac replies), then drop 100% of frames in TrafficMonitorLoop
+                            SendArpReply(targetMac, targetIp, LocalMac, RouterIp);
+                            SendArpReply(RouterMac, RouterIp, LocalMac, targetIp);
+                            SendPacketLocked(BuildArpPacket(targetMac, LocalMac, 1, LocalMac, RouterIp, targetMac, targetIp));
+                            SendPacketLocked(BuildArpPacket(RouterMac, LocalMac, 1, LocalMac, targetIp, RouterMac, RouterIp));
                         }
                         else if (target.Redirect)
                         {
@@ -444,11 +656,14 @@ namespace NetControl
                                 _bandwidthThrottler?.RemoveLimit(target.Ip);
                             }
 
-                            // REDIRECT: Route traffic through us (MITM)
-                            SendArpReply(target.Mac.GetAddressBytes(), target.Ip.GetAddressBytes(),
-                                        LocalMac, RouterIp);
-                            SendArpReply(RouterMac, RouterIp,
-                                        LocalMac, target.Ip.GetAddressBytes());
+                            byte[] targetMac = target.Mac.GetAddressBytes();
+                            byte[] targetIp = target.Ip.GetAddressBytes();
+
+                            // REDIRECT: Route traffic through us (MITM) via ARP Reply + unicast ARP Request
+                            SendArpReply(targetMac, targetIp, LocalMac, RouterIp);
+                            SendArpReply(RouterMac, RouterIp, LocalMac, targetIp);
+                            SendPacketLocked(BuildArpPacket(targetMac, LocalMac, 1, LocalMac, RouterIp, targetMac, targetIp));
+                            SendPacketLocked(BuildArpPacket(RouterMac, LocalMac, 1, LocalMac, targetIp, RouterMac, RouterIp));
                         }
                     }
 
@@ -474,8 +689,8 @@ namespace NetControl
                         }
                     }
 
-                    // Sleep cooperatively in short slices for fast shutdown
-                    for (int s = 0; s < 20 && _isSpoofing; s++)
+                    // Sleep cooperatively in short slices for fast shutdown (1000ms refresh)
+                    for (int s = 0; s < 10 && _isSpoofing; s++)
                     {
                         Thread.Sleep(100);
                     }
@@ -514,32 +729,61 @@ namespace NetControl
         /// </summary>
         private void RestoreArpTables()
         {
-            if (RouterMac == null || RouterIp == null) return;
-
-            IReadOnlyList<PC> snapshot = _pcList.Devices;
-            for (int attempt = 0; attempt < 3; attempt++)
+            try
             {
-                foreach (PC target in snapshot)
+                if (RouterMac == null || RouterIp == null) return;
+
+                IReadOnlyList<PC> snapshot = _pcList.Devices;
+                for (int attempt = 0; attempt < 3; attempt++)
                 {
-                    if (target.IsLocalPc || target.IsGateway || target.Mac == null || target.Ip == null) continue;
+                    foreach (PC target in snapshot)
+                    {
+                        if (target.IsLocalPc || target.IsGateway || target.Mac == null || target.Ip == null) continue;
 
-                    // Tell device the real gateway MAC
-                    SendArpReply(target.Mac.GetAddressBytes(), target.Ip.GetAddressBytes(),
-                                RouterMac, RouterIp);
-                    // Tell router the real device MAC
-                    SendArpReply(RouterMac, RouterIp,
-                                target.Mac.GetAddressBytes(), target.Ip.GetAddressBytes());
+                        // Tell device the real gateway MAC
+                        SendArpReply(target.Mac.GetAddressBytes(), target.Ip.GetAddressBytes(),
+                                    RouterMac, RouterIp);
+                        // Tell router the real device MAC
+                        SendArpReply(RouterMac, RouterIp,
+                                    target.Mac.GetAddressBytes(), target.Ip.GetAddressBytes());
+                    }
+                    Thread.Sleep(100);
                 }
-                Thread.Sleep(100);
-            }
 
-            lock (_activeSpoofedIps)
+                lock (_activeSpoofedIps)
+                {
+                    _activeSpoofedIps.Clear();
+                }
+
+                _bandwidthThrottler?.ResetAll();
+                Console.WriteLine("[INFO] ARP tables and bandwidth limits restored.");
+            }
+            finally
             {
-                _activeSpoofedIps.Clear();
+                SetWindowsIpForwarding(false);
             }
+        }
 
-            _bandwidthThrottler?.ResetAll();
-            Console.WriteLine("[INFO] ARP tables and bandwidth limits restored.");
+        private static void SetWindowsIpForwarding(bool enable)
+        {
+            if (!OperatingSystem.IsWindows()) return;
+            try
+            {
+                string state = enable ? "Enabled" : "Disabled";
+                using var proc = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "powershell",
+                    Arguments = $"-NoProfile -NonInteractive -Command \"Get-NetIPInterface -AddressFamily IPv4 -ConnectionState Connected | Set-NetIPInterface -Forwarding {state} -ErrorAction SilentlyContinue\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+                proc?.WaitForExit(3000);
+                Console.WriteLine($"[INFO] Windows IPv4 Forwarding set to {state}.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[IP FORWARDING] Gagal mengatur IP forwarding: {ex.Message}");
+            }
         }
 
         // ──────────────────────────────────────────────
@@ -558,7 +802,7 @@ namespace NetControl
                 {
                     // Open a SEPARATE device handle to avoid filter conflicts
                     _trafficDevice = new LibPcapLiveDevice(_device.Interface);
-                    _trafficDevice.Open(DeviceModes.Promiscuous, 100);
+                    _trafficDevice.Open(DeviceModes.Promiscuous, 5);
                     _trafficDevice.Filter = "ip"; // Only IP packets
 
                     _isMonitoringTraffic = true;
@@ -620,6 +864,10 @@ namespace NetControl
                         }
                     }
 
+                    uint localIpUint = (LocalIp != null && LocalIp.Length == 4)
+                        ? (uint)((LocalIp[0] << 24) | (LocalIp[1] << 16) | (LocalIp[2] << 8) | LocalIp[3])
+                        : 0;
+
                     // Capture using high-precision Stopwatch timing (1000 ms target window)
                     long startTicks = Stopwatch.GetTimestamp();
                     while (_isMonitoringTraffic && Stopwatch.GetElapsedTime(startTicks).TotalMilliseconds < 1000)
@@ -637,18 +885,157 @@ namespace NetControl
                         uint srcIpUint = (uint)((raw[26] << 24) | (raw[27] << 16) | (raw[28] << 8) | raw[29]);
                         uint dstIpUint = (uint)((raw[30] << 24) | (raw[31] << 16) | (raw[32] << 8) | raw[33]);
 
-                        int packetSize = raw.Length;
+                        bool fromLocalMac = LocalMac != null && LocalMac.Length == 6 &&
+                                            raw[6] == LocalMac[0] && raw[7] == LocalMac[1] && raw[8] == LocalMac[2] &&
+                                            raw[9] == LocalMac[3] && raw[10] == LocalMac[4] && raw[11] == LocalMac[5];
 
-                        // Fast O(1) matching by integer IP
-                        // srcIp matches -> device sent this packet (Egress / Upload)
+                        // Ignore packets relayed/forged by us (prevents double counting and forwarding loops)
+                        if (fromLocalMac && srcIpUint != localIpUint) continue;
+
+                        bool toLocalMac = LocalMac != null && LocalMac.Length == 6 &&
+                                          raw[0] == LocalMac[0] && raw[1] == LocalMac[1] && raw[2] == LocalMac[2] &&
+                                          raw[3] == LocalMac[3] && raw[4] == LocalMac[4] && raw[5] == LocalMac[5];
+
+                        int packetSize = raw.Length;
+                        bool forwardedOnUpload = false;
+
+                        // Upload path: srcIp matches a tracked device
                         if (ipToPc.TryGetValue(srcIpUint, out var srcPc))
                         {
-                            srcPc.AddBytesSent(packetSize);
+                            if (srcPc.IsLocalPc || srcPc.IsGateway)
+                            {
+                                srcPc.AddBytesSent(packetSize);
+                            }
+                            else
+                            {
+                                bool shouldDrop = false;
+                                if (_isSpoofing && srcPc.Redirect)
+                                {
+                                    shouldDrop = InspectAndEnforceDomainPolicy(raw, srcPc, srcIpUint, dstIpUint);
+                                }
+
+                                if (_isSpoofing && (srcPc.Block || srcPc.Redirect))
+                                {
+                                    if (srcPc.Block)
+                                    {
+                                        if (toLocalMac && dstIpUint != localIpUint)
+                                        {
+                                            EnforceFullDeviceBlock(raw);
+                                        }
+                                        continue;
+                                    }
+
+                                    if (shouldDrop)
+                                    {
+                                        continue;
+                                    }
+
+                                    if (_bandwidthThrottler is TokenBucketThrottler uploadTb && !uploadTb.AllowPacket(srcPc.Ip, packetSize))
+                                    {
+                                        continue;
+                                    }
+
+                                    srcPc.AddBytesSent(packetSize);
+
+                                    if (srcPc.Redirect && toLocalMac && dstIpUint != localIpUint && RouterMac != null)
+                                    {
+                                        byte[] nextHopMac = ipToPc.TryGetValue(dstIpUint, out var lanDst) && lanDst.Mac != null
+                                            ? lanDst.Mac.GetAddressBytes()
+                                            : RouterMac;
+                                        ForwardFrame(raw, nextHopMac);
+                                        forwardedOnUpload = true;
+                                    }
+                                }
+                                else
+                                {
+                                    srcPc.AddBytesSent(packetSize);
+                                }
+                            }
                         }
-                        // dstIp matches -> device received this packet (Ingress / Download)
+
+                        // Cache DNS answers from external or gateway DNS servers
+                        if (raw[23] == 17)
+                        {
+                            int ipHdrLen = (raw[14] & 0x0F) * 4;
+                            if (ipHdrLen >= 20 && 14 + ipHdrLen + 8 <= raw.Length)
+                            {
+                                int udpOff = 14 + ipHdrLen;
+                                ushort srcPort = (ushort)((raw[udpOff] << 8) | raw[udpOff + 1]);
+                                if (srcPort == 53)
+                                {
+                                    DomainInspector.TryExtractDnsAnswers(raw, udpOff + 8);
+                                }
+                            }
+                        }
+
+                        // Download path: dstIp matches a tracked device
                         if (ipToPc.TryGetValue(dstIpUint, out var dstPc))
                         {
-                            dstPc.AddBytesReceived(packetSize);
+                            if (dstPc.IsLocalPc || dstPc.IsGateway)
+                            {
+                                dstPc.AddBytesReceived(packetSize);
+                            }
+                            else if (_isSpoofing && (dstPc.Block || dstPc.Redirect))
+                            {
+                                if (dstPc.Block)
+                                {
+                                    if (toLocalMac && !fromLocalMac && raw[23] == 6 && dstPc.Mac != null)
+                                    {
+                                        int ipHdrLen = (raw[14] & 0x0F) * 4;
+                                        int tcpOffset = 14 + ipHdrLen;
+                                        if (ipHdrLen >= 20 && tcpOffset + 20 <= raw.Length && (raw[tcpOffset + 13] & 0x04) == 0)
+                                        {
+                                            SendPacketLocked(DomainInspector.BuildTcpResetFromServerPacket(raw, LocalMac, dstPc.Mac.GetAddressBytes()));
+                                        }
+                                    }
+                                    continue;
+                                }
+
+                                if (BlockedDomainStore.IsIpBlocked(srcIpUint, dstPc.MacFormatted, out _))
+                                {
+                                    if (raw[23] == 6 && dstPc.Mac != null)
+                                    {
+                                        int ipHdrLen = (raw[14] & 0x0F) * 4;
+                                        int tcpOffset = 14 + ipHdrLen;
+                                        if (ipHdrLen >= 20 && tcpOffset + 20 <= raw.Length && (raw[tcpOffset + 13] & 0x04) == 0)
+                                        {
+                                            SendPacketLocked(DomainInspector.BuildTcpResetFromServerPacket(raw, LocalMac, dstPc.Mac.GetAddressBytes()));
+                                        }
+                                    }
+                                    continue;
+                                }
+
+                                // Drop inbound QUIC (UDP 443) for spoofed devices so apps stay on TCP 443
+                                if (dstPc.Redirect && raw[23] == 17)
+                                {
+                                    int ipHdrLen = (raw[14] & 0x0F) * 4;
+                                    if (ipHdrLen >= 20 && 14 + ipHdrLen + 8 <= raw.Length)
+                                    {
+                                        int udpOff = 14 + ipHdrLen;
+                                        ushort srcPort = (ushort)((raw[udpOff] << 8) | raw[udpOff + 1]);
+                                        if (srcPort == 443)
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                }
+
+                                if (_bandwidthThrottler is TokenBucketThrottler downloadTb && !downloadTb.AllowPacket(dstPc.Ip, packetSize))
+                                {
+                                    continue;
+                                }
+
+                                dstPc.AddBytesReceived(packetSize);
+
+                                if (!forwardedOnUpload && dstPc.Redirect && toLocalMac && !fromLocalMac && dstPc.Mac != null)
+                                {
+                                    ForwardFrame(raw, dstPc.Mac.GetAddressBytes());
+                                }
+                            }
+                            else
+                            {
+                                dstPc.AddBytesReceived(packetSize);
+                            }
                         }
                     }
 
@@ -704,6 +1091,148 @@ namespace NetControl
                     }
                 }
             }
+        }
+
+        private void ForwardFrame(byte[] raw, byte[] targetMac)
+        {
+            if (raw == null || targetMac == null || LocalMac == null ||
+                targetMac.Length < 6 || LocalMac.Length < 6 || raw.Length < 14)
+            {
+                return;
+            }
+
+            byte[] frame = new byte[raw.Length];
+            Buffer.BlockCopy(raw, 0, frame, 0, raw.Length);
+            Buffer.BlockCopy(targetMac, 0, frame, 0, 6);
+            Buffer.BlockCopy(LocalMac, 0, frame, 6, 6);
+            SendPacketLocked(frame);
+        }
+
+        private bool InspectAndEnforceDomainPolicy(byte[] raw, PC srcPc, uint srcIpUint, uint dstIpUint)
+        {
+            int ipHdrLen = (raw[14] & 0x0F) * 4;
+            byte ipProto = raw[23];
+            string deviceMac = srcPc.MacFormatted;
+
+            // Force QUIC (UDP 443) fallback to TCP 443 (HTTPS/TLS) for spoofed devices
+            if (_isSpoofing && srcPc.Redirect && !srcPc.IsLocalPc && ipProto == 17 &&
+                ipHdrLen >= 20 && 14 + ipHdrLen + 8 <= raw.Length)
+            {
+                int udpOffset = 14 + ipHdrLen;
+                ushort dstPort = (ushort)((raw[udpOffset + 2] << 8) | raw[udpOffset + 3]);
+                if (dstPort == 443)
+                {
+                    SendPacketLocked(DomainInspector.BuildIcmpPortUnreachable(raw, LocalMac));
+                    if (DomainInspector.TryGetCachedIpDomain(dstIpUint, out string quicDomain) ||
+                        DomainInspector.TryMatchWellKnownAppIp(dstIpUint, out quicDomain, out _))
+                    {
+                        bool quicBlocked = BlockedDomainStore.IsDomainBlocked(quicDomain, deviceMac);
+                        srcPc.LastDomain = quicDomain;
+                        srcPc.IsLastDomainBlocked = quicBlocked;
+                        EmitDomainReportThrottled(srcPc, srcIpUint, quicDomain, "QUIC", quicBlocked);
+                    }
+                    return true;
+                }
+            }
+
+            if (DomainInspector.TryInspectPacket(raw, out string domain, out string proto, out _, out _))
+            {
+                bool blocked = BlockedDomainStore.IsDomainBlocked(domain, deviceMac);
+                if (blocked && (proto == "HTTPS" || proto == "HTTP" || proto == "TELEGRAM"))
+                {
+                    BlockedDomainStore.RegisterBlockedIp(dstIpUint, domain);
+                }
+
+                if (blocked && _isSpoofing && srcPc.Redirect && !srcPc.IsLocalPc)
+                {
+                    EnforcePacketBlock(raw, proto);
+                }
+
+                srcPc.LastDomain = domain;
+                srcPc.IsLastDomainBlocked = blocked;
+                EmitDomainReportThrottled(srcPc, srcIpUint, domain, proto, blocked);
+                return blocked;
+            }
+
+            // Fallback enforcement on subsequent packets to known blocked IPv4 addresses
+            if (_isSpoofing && srcPc.Redirect && BlockedDomainStore.IsIpBlocked(dstIpUint, deviceMac, out _))
+            {
+                if (ipHdrLen >= 20 && ipProto == 6 && 14 + ipHdrLen + 20 <= raw.Length) // TCP
+                {
+                    int tcpOffset = 14 + ipHdrLen;
+                    bool isRst = (raw[tcpOffset + 13] & 0x04) != 0;
+                    if (!isRst)
+                    {
+                        EnforcePacketBlock(raw, "HTTPS");
+                    }
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        private void EnforcePacketBlock(byte[] raw, string proto)
+        {
+            if (proto == "DNS")
+            {
+                SendPacketLocked(DomainInspector.BuildDnsSinkholeReply(raw, LocalMac));
+                return;
+            }
+
+            SendPacketLocked(DomainInspector.BuildTcpResetToClient(raw, LocalMac));
+            if (RouterMac != null)
+            {
+                SendPacketLocked(DomainInspector.BuildTcpResetToServer(raw, LocalMac, RouterMac));
+            }
+        }
+
+        private void EnforceFullDeviceBlock(byte[] raw)
+        {
+            int ipHdrLen = (raw[14] & 0x0F) * 4;
+            if (ipHdrLen < 20) return;
+
+            byte ipProto = raw[23];
+            if (ipProto == 6) // TCP: send RST to both client and server to cut active connections immediately
+            {
+                int tcpOffset = 14 + ipHdrLen;
+                if (tcpOffset + 20 <= raw.Length && (raw[tcpOffset + 13] & 0x04) == 0)
+                {
+                    EnforcePacketBlock(raw, "TCP");
+                }
+            }
+            else if (ipProto == 17) // UDP 443 (QUIC): send ICMP Port Unreachable for fast failure without poisoning DNS cache
+            {
+                int udpOffset = 14 + ipHdrLen;
+                if (udpOffset + 8 <= raw.Length)
+                {
+                    ushort dstPort = (ushort)((raw[udpOffset + 2] << 8) | raw[udpOffset + 3]);
+                    if (dstPort == 443)
+                    {
+                        SendPacketLocked(DomainInspector.BuildIcmpPortUnreachable(raw, LocalMac));
+                    }
+                }
+            }
+        }
+
+        private void EmitDomainReportThrottled(PC srcPc, uint srcIpUint, string domain, string proto, bool blocked)
+        {
+            var key = (srcIpUint, domain);
+            long now = Stopwatch.GetTimestamp();
+
+            if (_lastDomainReportTicks.TryGetValue(key, out long prevTicks) &&
+                Stopwatch.GetElapsedTime(prevTicks, now).TotalSeconds < 2.0)
+            {
+                return;
+            }
+
+            if (_lastDomainReportTicks.Count > 1000)
+            {
+                _lastDomainReportTicks.Clear();
+            }
+
+            _lastDomainReportTicks[key] = now;
+            OnDomainRequested?.Invoke(srcPc, domain, proto, blocked);
         }
 
         private static string FormatSpeed(double kbs) => PC.FormatSpeed(kbs);
@@ -819,7 +1348,7 @@ namespace NetControl
         {
             if (!e.IsAvailable)
             {
-                HandleNetworkInterruption("Network connection lost (availability down).");
+                HandleNetworkInterruption("Koneksi jaringan terputus (tidak tersedia).");
             }
         }
 
@@ -865,7 +1394,7 @@ namespace NetControl
 
             if (!isDeviceStillActive)
             {
-                HandleNetworkInterruption("Monitored interface disconnected or IPv4 address revoked.");
+                HandleNetworkInterruption("Antarmuka yang dipantau terputus atau alamat IPv4 dicabut.");
             }
         }
 

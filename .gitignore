@@ -60,6 +60,11 @@ temp/
 .env
 .analisis.md
 .analisis.pdf
+app_settings.json
+device_labels.json
+device_settings.json
+blocked_domains.json
+block_schedules.json
 
 ## --- Python Cache & Bytecode ---
 __pycache__/

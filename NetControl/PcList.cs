@@ -35,7 +35,22 @@ namespace NetControl
         {
             if (pc?.Ip == null) return false;
 
+            if (pc.Mac != null && string.IsNullOrWhiteSpace(pc.CustomLabel))
+            {
+                string savedLabel = DeviceLabelStore.GetLabel(pc.MacFormatted);
+                if (!string.IsNullOrWhiteSpace(savedLabel))
+                {
+                    pc.CustomLabel = savedLabel;
+                }
+            }
+
+            if (pc.Mac != null && pc.CanControl)
+            {
+                ApplySavedProfile(pc);
+            }
+
             bool isNew = false;
+            PC macUpdatedItem = null;
             lock (_syncLock)
             {
                 foreach (PC item in _devices)
@@ -47,14 +62,49 @@ namespace NetControl
                         if (pc.Mac != null && (item.Mac == null || !item.Mac.Equals(pc.Mac)))
                         {
                             item.Mac = pc.Mac;
+                            if (string.IsNullOrWhiteSpace(item.CustomLabel))
+                            {
+                                string savedLabel = DeviceLabelStore.GetLabel(item.MacFormatted);
+                                if (!string.IsNullOrWhiteSpace(savedLabel))
+                                {
+                                    item.CustomLabel = savedLabel;
+                                }
+                            }
+                            macUpdatedItem = item;
                         }
                         if (pc.IsGateway && !item.IsGateway) item.IsGateway = true;
                         if (pc.IsLocalPc && !item.IsLocalPc) item.IsLocalPc = true;
-                        return false;
+                        break;
                     }
                 }
-                _devices.Add(pc);
-                isNew = true;
+                if (macUpdatedItem == null)
+                {
+                    // Check again whether loop exited on existing IP without MAC update
+                    bool exists = false;
+                    foreach (PC item in _devices)
+                    {
+                        if (item.Ip != null && item.Ip.Equals(pc.Ip))
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists)
+                    {
+                        _devices.Add(pc);
+                        isNew = true;
+                    }
+                }
+            }
+
+            if (macUpdatedItem != null &&
+                macUpdatedItem.CanControl &&
+                !macUpdatedItem.Redirect &&
+                !macUpdatedItem.Block &&
+                macUpdatedItem.BandwidthLimitKb == 0 &&
+                macUpdatedItem.DataQuotaMb == 0)
+            {
+                ApplySavedProfile(macUpdatedItem);
             }
 
             if (isNew)
@@ -69,7 +119,26 @@ namespace NetControl
                 }
             }
 
-            return true;
+            return isNew;
+        }
+
+        private static void ApplySavedProfile(PC pc)
+        {
+            if (pc?.Mac == null || !pc.CanControl) return;
+
+            var profile = DeviceSettingsStore.GetProfile(pc.MacFormatted);
+            if (profile == null) return;
+
+            pc.BandwidthLimitKb = profile.BandwidthLimitKb;
+            pc.DataQuotaMb = profile.DataQuotaMb;
+            if (profile.Block)
+            {
+                pc.Block = true;
+            }
+            else if (profile.Redirect)
+            {
+                pc.Redirect = true;
+            }
         }
 
         public bool RemoveDevice(PC pc)

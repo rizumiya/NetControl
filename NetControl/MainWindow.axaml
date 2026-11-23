@@ -1,13 +1,13 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="NetControl.MainWindow"
-        Title="NetControl - Network Traffic Management"
+        Title="NetControl - Manajemen Lalu Lintas Jaringan"
         Icon="/Assets/app_icon.ico"
-        Width="980" Height="620"
-        MinWidth="860" MinHeight="540"
+        Width="1020" Height="790"
+        MinWidth="880" MinHeight="660"
         Background="{StaticResource AppBackgroundBrush}">
 
-    <Grid RowDefinitions="Auto, Auto, Auto, *, Auto" Margin="16">
+    <Grid RowDefinitions="Auto, Auto, Auto, *, 215, Auto" Margin="16">
 
         <!-- ── Notification and Disclaimer Banners ── -->
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,12">
@@ -27,7 +27,7 @@
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                        <TextBlock Text="Privilege Warning: Elevated Permissions Required"
+                        <TextBlock Text="Peringatan Hak Akses: Diperlukan Izin Administrator / Root"
                                    FontWeight="Bold" FontSize="12.5"
                                    Foreground="{StaticResource AccentDangerBrush}"/>
                         <TextBlock Text="{Binding ElevationGuidance}"
@@ -54,14 +54,14 @@
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Grid.Column="1"
-                               Text="Notice: NetControl is intended exclusively for authorized network diagnostics, lab security evaluations, and educational research. Unauthorized ARP redirection is strictly prohibited on non-owned infrastructure."
+                               Text="Pemberitahuan: NetControl ditujukan khusus untuk diagnostik jaringan resmi, evaluasi keamanan laboratorium, dan penelitian edukasi. Pengalihan ARP tanpa izin dilarang keras pada infrastruktur milik pihak lain."
                                FontSize="11.5"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center"
                                TextWrapping="Wrap"/>
                     <Button Grid.Column="2" Classes="ghost-dismiss"
                             Click="OnDismissDisclaimerClick"
-                            ToolTip.Tip="Dismiss notice"
+                            ToolTip.Tip="Tutup pemberitahuan"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center">
                         <PathIcon Data="{StaticResource IconX}" Width="10" Height="10"
@@ -83,27 +83,27 @@
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="NetControl" FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <TextBlock Text="ARP Engine &amp; Traffic Controller" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="Mesin ARP &amp; Pengendali Lalu Lintas" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Interface Selector & Action Controls -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <TextBlock Text="Interfaz:" VerticalAlignment="Center" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    <ComboBox Name="NetInterfacesBox" Width="210" Height="34" FontSize="12.5" VerticalAlignment="Center"/>
+                    <TextBlock Text="Antarmuka:" VerticalAlignment="Center" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <ComboBox Name="NetInterfacesBox" Width="245" Height="34" FontSize="12.5" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <Button Grid.Column="3" Name="BtnScan" Classes="primary" Click="OnScanClick" Margin="0,0,8,0" Height="34" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <PathIcon Data="{StaticResource IconSearch}" Width="13" Height="13" Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock Text="Escanear Red" VerticalAlignment="Center"/>
+                        <TextBlock Text="Pindai Jaringan" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
                 <Button Grid.Column="4" Name="BtnSpoof" Classes="danger" Click="OnSpoofClick" Height="34" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <PathIcon Name="SpoofButtonIcon" Data="{StaticResource IconZap}" Width="13" Height="13" Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock Name="SpoofButtonText" Text="START ARP SPOOF" VerticalAlignment="Center"/>
+                        <TextBlock Name="SpoofButtonText" Text="MULAI ARP SPOOF" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Grid>
@@ -117,7 +117,7 @@
                     CornerRadius="8" Padding="14,10" Margin="0,0,6,0">
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
-                        <TextBlock Text="TOTAL DISPOSITIVOS" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="TOTAL PERANGKAT" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
                         <TextBlock Name="KpiTotalDevices" Text="{Binding TotalDevicesCount}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                     </StackPanel>
                     <Border Grid.Column="1" Width="32" Height="32" CornerRadius="6" Background="{StaticResource AccentCyanBgBrush}" VerticalAlignment="Center">
@@ -132,7 +132,7 @@
                     CornerRadius="8" Padding="14,10" Margin="3,0,3,0">
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
-                        <TextBlock Text="INTERCEPTADOS" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="DIINTERSEPSI" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
                         <TextBlock Name="KpiSpoofed" Text="{Binding SpoofedCount}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentCyanBrush}"/>
                     </StackPanel>
                     <Border Grid.Column="1" Width="32" Height="32" CornerRadius="6" Background="{StaticResource AccentCyanBgBrush}" VerticalAlignment="Center">
@@ -147,7 +147,7 @@
                     CornerRadius="8" Padding="14,10" Margin="3,0,3,0">
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
-                        <TextBlock Text="BLOQUEADOS" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="DIBLOKIR" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
                         <TextBlock Name="KpiBlocked" Text="{Binding BlockedCount}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentDangerBrush}"/>
                     </StackPanel>
                     <Border Grid.Column="1" Width="32" Height="32" CornerRadius="6" Background="{StaticResource AccentDangerBgBrush}" VerticalAlignment="Center">
@@ -162,7 +162,7 @@
                     CornerRadius="8" Padding="14,10" Margin="6,0,0,0">
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
-                        <TextBlock Text="PUERTA DE ENLACE" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="GATEWAY" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
                         <TextBlock Name="KpiGateway" Text="{Binding GatewayIpDisplay}" FontFamily="{StaticResource MonospaceFontFamily}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource AccentWarningBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Border Grid.Column="1" Width="32" Height="32" CornerRadius="6" Background="{StaticResource AccentWarningBgBrush}" VerticalAlignment="Center">
@@ -178,21 +178,21 @@
             <Grid RowDefinitions="Auto, Auto, *">
 
                 <!-- Table Column Headers -->
-                <Grid Grid.Row="0" ColumnDefinitions="1.1*, 1.3*, 2.0*, 1.0*, 1.0*, 0.9*, 0.5*, 0.5*"
+                <Grid Grid.Row="0" ColumnDefinitions="1.05*, 1.25*, 1.95*, 0.95*, 0.95*, 1.1*, 0.45*, 0.45*"
                       Background="{StaticResource HeaderBackgroundBrush}" Height="36">
-                    <TextBlock Text="IP Address" Grid.Column="0" VerticalAlignment="Center" Margin="14,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
-                    <TextBlock Text="MAC Address" Grid.Column="1" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
-                    <TextBlock Text="Device Identification" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
-                    <TextBlock Text="Download Speed" Grid.Column="3" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
-                               ToolTip.Tip="Monitored ingress transfer rate (Download)"/>
-                    <TextBlock Text="Upload Speed" Grid.Column="4" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
-                               ToolTip.Tip="Monitored egress transfer rate (Upload)"/>
-                    <TextBlock Text="Cap (KB/s)" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
-                               ToolTip.Tip="Allowed bandwidth limit in KB/s (0 = Unlimited). Enabled when Spoof is checked."/>
+                    <TextBlock Text="Alamat IP" Grid.Column="0" VerticalAlignment="Center" Margin="14,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
+                    <TextBlock Text="Alamat MAC" Grid.Column="1" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
+                    <TextBlock Text="Identifikasi Perangkat" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
+                    <TextBlock Text="Kecepatan Unduh" Grid.Column="3" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                               ToolTip.Tip="Laju transfer masuk yang dipantau (Unduh)"/>
+                    <TextBlock Text="Kecepatan Unggah" Grid.Column="4" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                               ToolTip.Tip="Laju transfer keluar yang dipantau (Unggah)"/>
+                    <TextBlock Text="Batas (KB/s)" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                               ToolTip.Tip="Batas bandwidth yang diizinkan dalam KB/s (0 = Tanpa Batas). Aktif saat Spoof dicentang."/>
                     <TextBlock Text="Spoof" Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
-                               ToolTip.Tip="Enable ARP redirection (MITM)"/>
-                    <TextBlock Text="Block" Grid.Column="7" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
-                               ToolTip.Tip="Drop all network traffic"/>
+                               ToolTip.Tip="Aktifkan pengalihan ARP (MITM)"/>
+                    <TextBlock Text="Blokir" Grid.Column="7" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                               ToolTip.Tip="Putuskan semua lalu lintas jaringan"/>
                 </Grid>
 
                 <Rectangle Grid.Row="1" Fill="{StaticResource BorderDefaultBrush}" Height="1"/>
@@ -212,11 +212,11 @@
                                       Foreground="{StaticResource AccentPrimaryBrush}"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="No hay dispositivos detectados"
+                        <TextBlock Text="Belum ada perangkat terdeteksi"
                                    FontSize="15" FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    HorizontalAlignment="Center"/>
-                        <TextBlock Text="Selecciona una interfaz de red arriba y haz clic en 'Escanear Red' para comenzar el descubrimiento ARP."
+                        <TextBlock Text="Pilih antarmuka jaringan di atas dan klik 'Pindai Jaringan' untuk memulai penemuan ARP."
                                    FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
                                    HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="440"/>
                     </StackPanel>
@@ -227,7 +227,7 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,3">
-                                <Grid ColumnDefinitions="1.1*, 1.3*, 2.0*, 1.0*, 1.0*, 0.9*, 0.5*, 0.5*" MinHeight="36">
+                                <Grid ColumnDefinitions="1.05*, 1.25*, 1.95*, 0.95*, 0.95*, 1.1*, 0.45*, 0.45*" MinHeight="36">
 
                                     <!-- IP Address -->
                                     <TextBlock Grid.Column="0" Text="{Binding IpDisplay}"
@@ -243,49 +243,118 @@
                                                VerticalAlignment="Center" Margin="8,0,4,0"/>
 
                                     <!-- Device Identification & Role Badges -->
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,4,0">
+                                    <Grid Grid.Column="2" ColumnDefinitions="Auto, Auto, *, Auto" VerticalAlignment="Center" Margin="8,0,4,0">
                                         <!-- Gateway Badge -->
-                                        <Border IsVisible="{Binding IsGateway}" Background="{StaticResource AccentWarningBgBrush}"
+                                        <Border Grid.Column="0" IsVisible="{Binding IsGateway}" Background="{StaticResource AccentWarningBgBrush}"
                                                 BorderBrush="{StaticResource AccentWarningBrush}" BorderThickness="1"
-                                                CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
+                                                CornerRadius="4" Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
                                             <TextBlock Text="GATEWAY" FontSize="9" FontWeight="Bold"
                                                        Foreground="{StaticResource AccentWarningBrush}"/>
                                         </Border>
 
                                         <!-- Local Host (You) Badge -->
-                                        <Border IsVisible="{Binding IsLocalPc}" Background="{StaticResource AccentCyanBgBrush}"
+                                        <Border Grid.Column="1" IsVisible="{Binding IsLocalPc}" Background="{StaticResource AccentCyanBgBrush}"
                                                 BorderBrush="{StaticResource AccentCyanBrush}" BorderThickness="1"
-                                                CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
-                                            <TextBlock Text="YOU" FontSize="9" FontWeight="Bold"
+                                                CornerRadius="4" Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="ANDA" FontSize="9" FontWeight="Bold"
                                                        Foreground="{StaticResource AccentCyanBrush}"/>
                                         </Border>
 
-                                        <!-- Device Label (with character ellipsis protection) -->
-                                        <TextBlock Text="{Binding DeviceLabel}"
-                                                   FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}"
+                                        <!-- Normal Display View (vertical stack to prevent overlap on small windows) -->
+                                        <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="1" VerticalAlignment="Center"
+                                                    ClipToBounds="True" IsVisible="{Binding IsNotEditingLabel}">
+                                            <TextBlock Text="{Binding DeviceLabel}"
+                                                       FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding DeviceTooltip}"/>
+                                            <TextBlock Text="{Binding LastDomainDisplay}"
+                                                       IsVisible="{Binding HasLastDomain}"
+                                                       FontSize="10.5" Foreground="{Binding LastDomainBrushHex}"
+                                                       FontFamily="{StaticResource MonospaceFontFamily}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding LastDomainDisplay}"/>
+                                            <TextBlock Text="{Binding ActiveScheduleNote}"
+                                                       IsVisible="{Binding HasActiveScheduleNote}"
+                                                       FontSize="10" Foreground="{StaticResource AccentWarningBrush}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding ActiveScheduleNote}"/>
+                                        </StackPanel>
+
+                                        <!-- Inline Edit View -->
+                                        <TextBox Grid.Column="2"
+                                                 IsVisible="{Binding IsEditingLabel}"
+                                                 Text="{Binding EditLabelBuffer, Mode=TwoWay}"
+                                                 Watermark="Nama perangkat (kosongkan untuk reset)"
+                                                 Height="26" FontSize="11.5" Padding="6,3"
+                                                 Background="{StaticResource AppBackgroundBrush}"
+                                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                                 BorderBrush="{StaticResource AccentPrimaryBrush}"
+                                                 BorderThickness="1" CornerRadius="4"
+                                                 VerticalAlignment="Center"
+                                                 KeyDown="OnLabelTextBoxKeyDown"/>
+
+                                        <!-- Edit / Save-Cancel Action Buttons -->
+                                        <Button Grid.Column="3" Classes="ghost-dismiss"
+                                                IsVisible="{Binding IsNotEditingLabel}"
+                                                Click="OnEditLabelClick"
+                                                ToolTip.Tip="Beri / ubah label perangkat (tersimpan per MAC)"
+                                                Margin="4,0,0,0" VerticalAlignment="Center">
+                                            <PathIcon Data="{StaticResource IconEdit}" Width="12" Height="12"
+                                                      Foreground="{StaticResource TextMutedBrush}"/>
+                                        </Button>
+
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" Margin="4,0,0,0"
+                                                    VerticalAlignment="Center" IsVisible="{Binding IsEditingLabel}">
+                                            <Button Classes="ghost-dismiss"
+                                                    Click="OnSaveLabelClick"
+                                                    ToolTip.Tip="Simpan label (Enter)"
+                                                    VerticalAlignment="Center">
+                                                <PathIcon Data="{StaticResource IconCheck}" Width="12" Height="12"
+                                                          Foreground="{StaticResource AccentSuccessBrush}"/>
+                                            </Button>
+                                            <Button Classes="ghost-dismiss"
+                                                    Click="OnCancelLabelClick"
+                                                    ToolTip.Tip="Batal (Esc)"
+                                                    VerticalAlignment="Center">
+                                                <PathIcon Data="{StaticResource IconX}" Width="10" Height="10"
+                                                          Foreground="{StaticResource AccentDangerBrush}"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Download Speed & Cumulative Total -->
+                                    <StackPanel Grid.Column="3" Orientation="Vertical" Spacing="1" VerticalAlignment="Center" Margin="8,0,4,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="↓" FontSize="11" Foreground="{Binding DownloadTrafficBrushHex}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DownloadSpeedFormatted}"
+                                                       FontFamily="{StaticResource MonospaceFontFamily}"
+                                                       FontSize="11.5" Foreground="{Binding DownloadTrafficBrushHex}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding TotalDownloadFormatted}"
+                                                   FontFamily="{StaticResource MonospaceFontFamily}"
+                                                   FontSize="10" Foreground="{Binding TotalDataBrushHex}"
                                                    TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center"
-                                                   ToolTip.Tip="{Binding DeviceLabel}"/>
+                                                   ToolTip.Tip="{Binding TotalDataTooltip}"/>
                                     </StackPanel>
 
-                                    <!-- Download Speed (Emerald if active, Muted if idle) -->
-                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,4,0">
-                                        <TextBlock Text="↓" FontSize="11" Foreground="{Binding DownloadTrafficBrushHex}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding DownloadSpeedFormatted}"
+                                    <!-- Upload Speed & Cumulative Total -->
+                                    <StackPanel Grid.Column="4" Orientation="Vertical" Spacing="1" VerticalAlignment="Center" Margin="8,0,4,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="↑" FontSize="11" Foreground="{Binding UploadTrafficBrushHex}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding UploadSpeedFormatted}"
+                                                       FontFamily="{StaticResource MonospaceFontFamily}"
+                                                       FontSize="11.5" Foreground="{Binding UploadTrafficBrushHex}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding TotalUploadFormatted}"
                                                    FontFamily="{StaticResource MonospaceFontFamily}"
-                                                   FontSize="11.5" Foreground="{Binding DownloadTrafficBrushHex}"
+                                                   FontSize="10" Foreground="{Binding TotalDataBrushHex}"
                                                    TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center"/>
-                                    </StackPanel>
-
-                                    <!-- Upload Speed (Cyan if active, Muted if idle) -->
-                                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,4,0">
-                                        <TextBlock Text="↑" FontSize="11" Foreground="{Binding UploadTrafficBrushHex}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding UploadSpeedFormatted}"
-                                                   FontFamily="{StaticResource MonospaceFontFamily}"
-                                                   FontSize="11.5" Foreground="{Binding UploadTrafficBrushHex}"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center"/>
+                                                   ToolTip.Tip="{Binding TotalDataTooltip}"/>
                                     </StackPanel>
 
                                     <!-- Bandwidth Throttle Spinner -->
@@ -294,13 +363,15 @@
                                                    IsEnabled="{Binding IsThrottlingEnabled}"
                                                    Minimum="0" Maximum="1048576" Increment="64"
                                                    FormatString="0"
-                                                   Height="28"
-                                                   FontSize="11.5"
-                                                   Padding="2,1"
+                                                   Height="30"
+                                                   Width="104"
+                                                   FontSize="12"
+                                                   Padding="4,2"
                                                    VerticalAlignment="Center"
                                                    HorizontalAlignment="Center"
-                                                   Width="84"
-                                                   ToolTip.Tip="Allowed bandwidth in KB/s. 0 = Unlimited."/>
+                                                   VerticalContentAlignment="Center"
+                                                   HorizontalContentAlignment="Center"
+                                                   ToolTip.Tip="Bandwidth yang diizinkan dalam KB/s. 0 = Tanpa Batas."/>
 
                                     <!-- Spoof Action Checkbox -->
                                     <CheckBox Grid.Column="6" Classes="spoof-check"
@@ -322,21 +393,395 @@
             </Grid>
         </Border>
 
+        <!-- ── Live Request Monitor & HTTPS/DNS Website Blocker ── -->
+        <Grid Grid.Row="4" ColumnDefinitions="1.18*, 1.12*" Margin="0,10,0,0">
+            <!-- Left Panel: Monitor Request / Domain Live -->
+            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" ClipToBounds="True" Margin="0,0,6,0">
+                <Grid RowDefinitions="Auto, Auto, *">
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Background="{StaticResource HeaderBackgroundBrush}" Height="32" Margin="0">
+                        <TextBlock Grid.Column="0" Text="MONITOR REQUEST / DOMAIN LIVE"
+                                   FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="12,0,8,0"/>
+                        <Button Grid.Column="1" Classes="ghost-dismiss" Click="OnClearRequestsClick"
+                                Margin="0,0,8,0" Padding="8,2" VerticalAlignment="Center">
+                            <TextBlock Text="Bersihkan" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </Button>
+                    </Grid>
+                    <Rectangle Grid.Row="1" Fill="{StaticResource BorderDefaultBrush}" Height="1"/>
+                    <ListBox Grid.Row="2" Name="LiveRequestsListBox" Background="Transparent" Margin="0,2">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="MinHeight" Value="28"/>
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="10,3">
+                                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto" VerticalAlignment="Center">
+                                        <TextBlock Grid.Column="0" Text="{Binding Timestamp}"
+                                                   FontFamily="{StaticResource MonospaceFontFamily}"
+                                                   FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding DeviceName}"
+                                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                   MaxWidth="110" TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding DeviceIp}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <Border Grid.Column="2" Background="{StaticResource CardBackgroundElevatedBrush}"
+                                                CornerRadius="3" Padding="4,1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Protocol}" FontSize="9.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource AccentCyanBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="3" Text="{Binding Domain}"
+                                                   FontFamily="{StaticResource MonospaceFontFamily}"
+                                                   FontSize="11" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Domain}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding StatusText}"
+                                                   FontSize="9.5" FontWeight="Bold"
+                                                   Foreground="{Binding StatusBrushHex}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <Button Grid.Column="5" Classes="ghost-dismiss"
+                                                Click="OnToggleBlockFromLogClick"
+                                                Padding="6,2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ActionButtonText}" FontSize="10.5" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource AccentCyanBrush}"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Right Panel: Kontrol Lanjutan (Domain, Jadwal & Timer, Kuota & Data) -->
+            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" ClipToBounds="True" Margin="6,0,0,0">
+                <Grid RowDefinitions="Auto, Auto, *">
+                    <Border Grid.Row="0" Background="{StaticResource HeaderBackgroundBrush}" Height="34" Padding="8,0">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <Button Name="BtnTabDomains" Classes="panel-tab active" Click="OnSelectDomainsTabClick" VerticalAlignment="Center">
+                                <TextBlock Text="Blokir Domain" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button Name="BtnTabSchedules" Classes="panel-tab" Click="OnSelectSchedulesTabClick" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ScheduleTabTitle}" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button Name="BtnTabQuota" Classes="panel-tab" Click="OnSelectQuotaTabClick" VerticalAlignment="Center">
+                                <TextBlock Text="Kuota &amp; Data" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button Name="BtnTabAutostart" Classes="panel-tab" Click="OnSelectAutostartTabClick" VerticalAlignment="Center">
+                                <TextBlock Text="Autostart" VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <Rectangle Grid.Row="1" Fill="{StaticResource BorderDefaultBrush}" Height="1"/>
+
+                    <Grid Grid.Row="2">
+                        <!-- Tab 1: Blokir Domain -->
+                        <Grid RowDefinitions="Auto, *" IsVisible="{Binding IsDomainsTabActive}">
+                            <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto" Margin="10,8,10,6">
+                                <TextBox Grid.Column="0" Name="BlockDomainInput"
+                                         Watermark="Domain (mis. youtube.com, roblox.com)..."
+                                         Height="30" FontSize="11.5" Padding="8,4"
+                                         Background="{StaticResource AppBackgroundBrush}"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         BorderBrush="{StaticResource BorderDefaultBrush}"
+                                         BorderThickness="1" CornerRadius="6"
+                                         Margin="0,0,6,0"
+                                         KeyDown="OnBlockDomainInputKeyDown"/>
+                                <ComboBox Grid.Column="1" Name="BlockTargetComboBox"
+                                          Width="125" Height="30" FontSize="11"
+                                          Margin="0,0,6,0" VerticalAlignment="Center"
+                                          ToolTip.Tip="Pilih target perangkat (atau Semua yang di-Spoof)"/>
+                                <Button Grid.Column="2" Classes="danger" Click="OnAddBlockedDomainClick"
+                                        Height="30" Padding="10,4" VerticalAlignment="Center">
+                                    <TextBlock Text="+ Blokir" FontSize="11.5" VerticalAlignment="Center"/>
+                                </Button>
+                            </Grid>
+                            <ListBox Grid.Row="1" Name="BlockedDomainsListBox" Background="Transparent" Margin="0,0,0,2">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="MinHeight" Value="28"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="10,3">
+                                            <Grid ColumnDefinitions="*, Auto, Auto" VerticalAlignment="Center">
+                                                <TextBlock Grid.Column="0" Text="{Binding Domain}"
+                                                           FontFamily="{StaticResource MonospaceFontFamily}"
+                                                           FontSize="11.5" Foreground="{StaticResource AccentDangerBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding Domain}"
+                                                           VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundElevatedBrush}"
+                                                        BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                                                        CornerRadius="4" Padding="5,1" Margin="6,0,6,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding TargetBadgeText}" FontSize="10"
+                                                               Foreground="{StaticResource AccentCyanBrush}"
+                                                               MaxWidth="95" TextTrimming="CharacterEllipsis"
+                                                               ToolTip.Tip="{Binding TargetMac}"/>
+                                                </Border>
+                                                <Button Grid.Column="2" Classes="ghost-dismiss"
+                                                        Click="OnRemoveBlockedDomainClick"
+                                                        Padding="6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="Hapus" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+
+                        <!-- Tab 2: Jadwal & Timer -->
+                        <Grid RowDefinitions="Auto, *" IsVisible="{Binding IsSchedulesTabActive}">
+                            <StackPanel Grid.Row="0" Spacing="6" Margin="10,8,10,6">
+                                <Grid ColumnDefinitions="Auto, Auto, *">
+                                    <ComboBox Grid.Column="0" Name="ScheduleKindComboBox" Width="88" Height="28" FontSize="11"
+                                              Margin="0,0,6,0" SelectedIndex="0" SelectionChanged="OnScheduleFormChanged">
+                                        <ComboBoxItem Content="Timer"/>
+                                        <ComboBoxItem Content="Harian"/>
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="1" Name="ScheduleActionComboBox" Width="122" Height="28" FontSize="11"
+                                              Margin="0,0,6,0" SelectedIndex="0" SelectionChanged="OnScheduleFormChanged">
+                                        <ComboBoxItem Content="Blokir Internet"/>
+                                        <ComboBoxItem Content="Blokir Domain"/>
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="2" Name="ScheduleTargetComboBox" Height="28" FontSize="11"
+                                              HorizontalAlignment="Stretch"
+                                              ToolTip.Tip="Pilih perangkat target untuk jadwal/timer"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                                                Margin="0,0,6,0" IsVisible="{Binding IsScheduleTimerMode}">
+                                        <NumericUpDown Name="ScheduleMinutesInput" Minimum="1" Maximum="1440" Increment="15"
+                                                       Value="30" FormatString="0" Width="98" Height="28" FontSize="11"/>
+                                        <TextBlock Text="menit" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                                                Margin="0,0,6,0" IsVisible="{Binding IsScheduleDailyMode}">
+                                        <TextBox Name="ScheduleStartInput" Text="19:00" Width="58" Height="28" FontSize="11"
+                                                 Padding="4,4" TextAlignment="Center" VerticalContentAlignment="Center"
+                                                 Background="{StaticResource AppBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                 BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="4"/>
+                                        <TextBlock Text="–" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBox Name="ScheduleEndInput" Text="21:00" Width="58" Height="28" FontSize="11"
+                                                 Padding="4,4" TextAlignment="Center" VerticalContentAlignment="Center"
+                                                 Background="{StaticResource AppBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                 BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="4"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" Name="ScheduleDomainInput"
+                                             IsVisible="{Binding IsScheduleDomainAction}"
+                                             Watermark="Domain (mis. roblox.com)..."
+                                             Height="28" FontSize="11" Padding="6,4"
+                                             Background="{StaticResource AppBackgroundBrush}"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             BorderBrush="{StaticResource BorderDefaultBrush}"
+                                             BorderThickness="1" CornerRadius="4"
+                                             Margin="0,0,6,0"/>
+                                    <Button Grid.Column="2" Classes="danger" Click="OnAddScheduleClick"
+                                            Height="28" Padding="10,3" VerticalAlignment="Center">
+                                        <TextBlock Text="+ Jadwal" FontSize="11" VerticalAlignment="Center"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                            <ListBox Grid.Row="1" Name="SchedulesListBox" Background="Transparent" Margin="0,0,0,2">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="MinHeight" Value="28"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="10,3">
+                                            <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto" VerticalAlignment="Center">
+                                                <TextBlock Grid.Column="0" Text="{Binding ActionSummary}"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding ActionSummary}"
+                                                           VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundElevatedBrush}"
+                                                        BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                                                        CornerRadius="4" Padding="5,1" Margin="6,0,6,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding TargetDisplay}" FontSize="10"
+                                                               Foreground="{StaticResource AccentCyanBrush}"
+                                                               MaxWidth="85" TextTrimming="CharacterEllipsis"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="2" Text="{Binding TimingDisplay}"
+                                                           FontFamily="{StaticResource MonospaceFontFamily}"
+                                                           FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding StatusBadgeText}"
+                                                           FontSize="9.5" FontWeight="Bold"
+                                                           Foreground="{Binding StatusBrushHex}"
+                                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <Button Grid.Column="4" Classes="ghost-dismiss"
+                                                        Click="OnRemoveScheduleClick"
+                                                        Padding="6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="Hapus" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+
+                        <!-- Tab 3: Kuota & Total Data -->
+                        <Grid RowDefinitions="Auto, *" IsVisible="{Binding IsQuotaTabActive}">
+                            <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="10,8,10,6">
+                                <ComboBox Grid.Column="0" Name="QuotaTargetComboBox" Height="28" FontSize="11"
+                                          Margin="0,0,6,0" HorizontalAlignment="Stretch"
+                                          SelectionChanged="OnQuotaTargetSelectionChanged"
+                                          ToolTip.Tip="Pilih perangkat untuk atur batas kuota (0 MB = Tanpa Batas)"/>
+                                <NumericUpDown Grid.Column="1" Name="QuotaMbInput" Minimum="0" Maximum="102400" Increment="50"
+                                               Value="0" FormatString="0" Width="104" Height="28" FontSize="11" Margin="0,0,4,0"/>
+                                <TextBlock Grid.Column="2" Text="MB" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Button Grid.Column="3" Classes="primary" Click="OnSaveQuotaClick"
+                                        Height="28" Padding="10,3" Margin="0,0,4,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Simpan" FontSize="11" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Grid.Column="4" Classes="ghost-dismiss" Click="OnResetDataUsageClick"
+                                        Height="28" Padding="8,3" VerticalAlignment="Center"
+                                        ToolTip.Tip="Reset total pemakaian data semua perangkat ke 0 B">
+                                    <TextBlock Text="Reset" FontSize="11" Foreground="{StaticResource AccentWarningBrush}" VerticalAlignment="Center"/>
+                                </Button>
+                            </Grid>
+                            <ListBox Grid.Row="1" Name="DataUsageListBox" Background="Transparent" Margin="0,0,0,2">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="MinHeight" Value="28"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="10,3">
+                                            <Grid ColumnDefinitions="*, Auto, Auto" VerticalAlignment="Center">
+                                                <TextBlock Grid.Column="0" Text="{Binding DeviceLabel}"
+                                                           FontSize="11" Foreground="{StaticResource TextPrimaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding TotalDataTooltip}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding TotalDataLineDisplay}"
+                                                           FontFamily="{StaticResource MonospaceFontFamily}"
+                                                           FontSize="10.5" Foreground="{Binding TotalDataBrushHex}"
+                                                           VerticalAlignment="Center" Margin="8,0,8,0"/>
+                                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundElevatedBrush}"
+                                                        BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                                                        CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DataQuotaDisplay}" FontSize="10"
+                                                               Foreground="{StaticResource AccentCyanBrush}"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+
+                        <!-- Tab 4: Konfigurasi Autostart (Gaya XAMPP) -->
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsAutostartTabActive}">
+                            <StackPanel Spacing="4" Margin="10,7,10,6">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding AutoStartWithWindows}"
+                                              Content="Jalankan saat Windows login (Admin)"
+                                              FontSize="11" Foreground="{StaticResource TextPrimaryBrush}"
+                                              VerticalAlignment="Center"/>
+                                    <Border Grid.Column="1" Background="{StaticResource CardBackgroundElevatedBrush}"
+                                            BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                                            CornerRadius="4" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding AutostartStatusBadge}"
+                                                   FontSize="9.5" FontWeight="Bold"
+                                                   Foreground="{Binding AutostartStatusBrushHex}"/>
+                                    </Border>
+                                </Grid>
+
+                                <CheckBox IsChecked="{Binding StartMinimizedToTray}"
+                                          Content="Mulai tersembunyi di System Tray (saat Autostart)"
+                                          FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                                <CheckBox IsChecked="{Binding AutoScanOnStartup}"
+                                          Content="Otomatis Pindai Jaringan saat aplikasi terbuka"
+                                          FontSize="11" Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                                <CheckBox IsChecked="{Binding AutoSpoofAfterScan}"
+                                          IsEnabled="{Binding AutoScanOnStartup}"
+                                          Content="Otomatis nyalakan ARP Spoof setelah pindai"
+                                          FontSize="11" Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                                <Grid ColumnDefinitions="Auto, *, Auto" Margin="18,0,0,0">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding OnlyAutoSpoofOnHomeRouter}"
+                                              IsEnabled="{Binding AutoSpoofAfterScan}"
+                                              Content="Khusus Router Rumah:"
+                                              FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"
+                                              VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding HomeRouterDisplay}"
+                                               FontFamily="{StaticResource MonospaceFontFamily}"
+                                               FontSize="10" Foreground="{StaticResource AccentWarningBrush}"
+                                               VerticalAlignment="Center" Margin="6,0,6,0"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding HomeRouterDisplay}"/>
+                                    <Button Grid.Column="2" Classes="ghost-dismiss" Click="OnUseCurrentRouterClick"
+                                            Padding="6,2" VerticalAlignment="Center"
+                                            ToolTip.Tip="Simpan router yang terdeteksi saat ini sebagai Router Rumah">
+                                        <TextBlock Text="Pakai Router Ini" FontSize="10" Foreground="{StaticResource AccentCyanBrush}"/>
+                                    </Button>
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,3,0,0">
+                                    <Button Classes="primary" Click="OnSaveAutostartSettingsClick"
+                                            Height="28" Padding="12,3" VerticalAlignment="Center">
+                                        <TextBlock Text="Simpan Pengaturan" FontSize="11" VerticalAlignment="Center"/>
+                                    </Button>
+                                    <TextBlock Text="Berjalan via Task Scheduler (tanpa popup UAC)."
+                                               FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
         <!-- ── Bottom Footer & Status Bar ── -->
-        <Grid Grid.Row="4" ColumnDefinitions="Auto, *, Auto" Margin="0,10,0,0">
+        <Grid Grid.Row="5" ColumnDefinitions="Auto, *, Auto, Auto" Margin="0,10,0,0">
             <!-- Left: Live Status Pill -->
             <Border Grid.Column="0" Name="StatusPillBorder" Background="{StaticResource CardBackgroundBrush}"
                     BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
                     CornerRadius="14" Padding="12,5" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Ellipse Name="StatusDot" Width="8" Height="8" Fill="{StaticResource AccentSuccessBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Name="StatusText" Text="Ready." Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+                    <TextBlock Name="StatusText" Text="Siap." Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
 
+            <!-- Center-Right: System Tray Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,0">
+                <CheckBox IsChecked="{Binding MinimizeToTray}" Content="Tutup/Minimize ke Tray"
+                          FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                          ToolTip.Tip="Saat dicentang, tombol Minimize (—) dan Silang (X) menyembunyikan NetControl ke System Tray. Keluar total lewat klik kanan ikon Tray."/>
+                <Button Classes="ghost-dismiss" Click="OnHideToTrayClick" Padding="6,3" VerticalAlignment="Center"
+                        ToolTip.Tip="Sembunyikan NetControl ke System Tray">
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <PathIcon Data="{StaticResource IconMinimizeTray}" Width="12" Height="12"
+                                  Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Ke Tray" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
             <!-- Right: Network Metadata -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                <TextBlock Name="LocalIpText" Text="Local: —" Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" FontFamily="{StaticResource MonospaceFontFamily}" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                <TextBlock Name="LocalIpText" Text="Lokal: —" Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" FontFamily="{StaticResource MonospaceFontFamily}" VerticalAlignment="Center"/>
                 <TextBlock Name="SubnetText" Text="Subnet: —" Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" FontFamily="{StaticResource MonospaceFontFamily}" VerticalAlignment="Center"/>
             </StackPanel>
         </Grid>

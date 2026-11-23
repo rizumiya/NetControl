@@ -1,338 +1,190 @@
-# NetControl
+# NetControl (Edisi Bahasa Indonesia)
 
-Cross-platform network bandwidth diagnostics, device discovery, and ARP traffic management for local networks. The modern successor to SelfishNet, built with .NET 8 and Avalonia UI.
+Alat diagnostik bandwidth jaringan lokal, penemuan perangkat, pengontrol lalu lintas ARP, pemantau aktivitas domain *real-time*, serta penjadwalan akses jaringan lintas platform berbasis **.NET 8.0** dan **Avalonia UI** (penerus modern dari SelfishNet).
 
-> [!WARNING]
-> **Official Repository and Security Notice:** This repository (`https://github.com/nov0caina/NetControl`) is the **only official source** for the modern NetControl codebase. Third-party domains (such as `selfishnet.org` and unauthorized mirrors) are not affiliated with this project, distribute unauthorized versions, and may pose malware or security risks. Do not download or execute untrusted binaries from third-party websites.
+> [!NOTE]
+> **Repositori:** Repositori ini (`https://github.com/rizumiya/NetControl`) merupakan pengembangan edisi Bahasa Indonesia yang dibangun di atas proyek sumber terbuka `nov0caina/NetControl` dengan berbagai peningkatan fitur, perbaikan keandalan jaringan, dan antarmuka pengelolaan perangkat rumahan/lab.
 
 > [!IMPORTANT]
-> **Ethical and Authorized Usage:** NetControl is designed strictly for authorized network diagnostics, administrative troubleshooting, and educational research in controlled laboratory environments. Executing ARP cache redirection or packet interception on networks without explicit, documented permission from the network owner is illegal and unethical.
+> **Penggunaan Etis dan Resmi:** NetControl dirancang khusus untuk diagnostik jaringan yang sah, pengelolaan bandwidth jaringan pribadi/keluarga, dan penelitian edukasi di lingkungan laboratorium yang terkontrol. Melakukan pengalihan cache ARP atau intersepsi paket pada jaringan milik pihak lain tanpa izin eksplisit adalah tindakan ilegal dan tidak etis.
 
 ---
 
-## Modern Architecture & Cross-Platform Support
+## Fitur Utama & Peningkatan Baru
 
-NetControl has been redesigned from the ground up to remove legacy Windows-only dependencies (.NET Framework 3.5, WinForms, WinPcap, and `user32.dll` P/Invoke calls) in favor of a modern, multi-platform runtime.
+### 1. Antarmuka & Skrip Peluncur Bahasa Indonesia Penuh
+- Seluruh UI aplikasi (*toolbar*, kartu KPI, tabel perangkat, panel kontrol, tooltip, dan pesan status) tersedia lengkap dalam **Bahasa Indonesia**.
+- Dilengkapi skrip instalasi & peluncur praktis:
+  - Windows: [install_windows.bat](install_windows.bat) dan [start_windows.bat](start_windows.bat) (dukungan UTF-8 `chcp 65001`, otomatis meminta hak Administrator UAC, dan otomatis menutup jendela CMD setelah membuka aplikasi).
+  - Linux & macOS: [install_linux.sh](install_linux.sh), [start_linux.sh](start_linux.sh), [install_mac.sh](install_mac.sh), [start_mac.sh](start_mac.sh), serta [netcontrol.desktop](netcontrol.desktop).
 
-| Component | Legacy SelfishNet | NetControl |
+### 2. Pemindaian Jaringan Andal & Pengurutan Tabel Rapi
+- **Nama Adapter Ramah Pengguna:** Dropdown `Antarmuka:` menampilkan nama adapter yang mudah dikenali seperti `Wi-Fi — 192.168.1.68` atau `Ethernet — 192.168.1.xx` (bukan ID teknis `\Device\NPF_{...}`) dengan urutan adapter aktif ber-gateway di posisi teratas.
+- **Pemindaian 2 Putaran + Cache OS:** Membaca *ARP cache* sistem operasi (`arp -a` / `/proc/net/arp` / `arp -an`) dan mengirim *ARP sweep* 2 putaran agar perangkat Wi-Fi dalam mode hemat daya tetap terdeteksi.
+- **Identifikasi Perangkat & Filter ARP Probe:** Mendukung lookup vendor OUI, mDNS (dengan penyaringan *query* agar tidak salah mengenali Google Cast), DHCP Option 12, serta filter `0.0.0.0` (*ARP Probe* RFC 5227) agar tidak menimbulkan baris duplikat.
+- **Pengurutan Tabel Otomatis:** Perangkat target selalu ditempatkan di urutan atas (diurutkan secara numerik berdasarkan IPv4), diikuti `ANDA` (perangkat lokal), lalu `GATEWAY` (router) di baris paling bawah.
+
+### 3. Kontrol Lalu Lintas Akurat (`Spoof`, `Blokir`, & `Batas KB/s`)
+- **User-Space Layer-2 Relay:** Paket perangkat yang di-**`Spoof`** diteruskan, dibatasi, dan difilter langsung oleh NetControl di *user-space* (dengan IP Forwarding kernel Windows tetap nonaktif), sehingga pembatasan bandwidth dan pemblokiran domain berjalan konsisten.
+- **Metode ARP Ganda (`Spoof` & `Blokir` Mandiri):** Menggunakan pengiriman ganda (*ARP Reply* + *unicast ARP Request*) agar bekerja andal di perangkat Android dan router Wi-Fi modern, termasuk mode **`Blokir`** tanpa perlu mencentang **`Spoof`**, dilengkapi pemutusan koneksi instan (`TCP RST` dan `ICMP Port Unreachable` untuk QUIC UDP 443).
+- **Pembatas Bandwidth Presisi:** Menggunakan `TokenBucketThrottler` untuk kolom **`Batas (KB/s)`** (`0` = Tanpa Batas), dilengkapi tombol spinner panah vertikal yang ringkas agar kolom input angka lebih luas.
+
+### 4. Monitor Request Live & Pemblokir Website/Aplikasi Per Perangkat
+- **Monitor Request / Domain Live:** Memantau domain yang diakses perangkat yang di-**`Spoof`** secara langsung melalui inspeksi **TLS SNI** (termasuk segmen lanjutan TLS 1.3 *Post-Quantum*), **DNS**, **HTTP Host**, serta deteksi IP **Telegram MTProto**.
+- **Tolak QUIC UDP 443:** Mengarahkan trafik aplikasi/browser ke HTTPS TCP agar inspeksi SNI dan pemblokiran berjalan optimal.
+- **Aturan Blokir Global atau Per MAC Address:** Bisa diterapkan ke **`Semua (Di-Spoof)`** atau spesifik ke satu perangkat saja, lewat input manual maupun klik **`Blokir` / `Buka`** langsung dari log live.
+- **Ekspansi Domain Pendamping Otomatis:** Memblokir domain utama (misalnya `youtube.com`, `roblox.com`, `tiktok.com`, `instagram.com`, `facebook.com`, `twitter.com`/`x.com`, `netflix.com`, `telegram.org`/`t.me`, `whatsapp.com`) otomatis ikut memblokir domain CDN/API terkaitnya (`googlevideo.com`, `ytimg.com`, `rbxcdn.com`, dll.).
+
+### 5. Jadwal & Timer Blokir (`Jadwal & Timer`)
+- Tersedia mode **Timer** (hitungan mundur dalam menit) dan **Harian** (rentang jam berulang setiap hari, termasuk lintas tengah malam seperti `22:00–06:00`).
+- Mendukung aksi **Blokir Internet** (per perangkat) maupun **Blokir Domain** (per perangkat atau semua).
+- Status sisa waktu/jadwal tampil langsung di baris perangkat dan memulihkan kondisi sebelumnya secara otomatis saat jadwal berakhir.
+
+### 6. Total Pemakaian Data & Kuota Otomatis (`Kuota & Data`)
+- Menampilkan **total pemakaian data kumulatif** (`B` / `KB` / `MB` / `GB`) di bawah kecepatan Unduh/Unggah masing-masing perangkat.
+- Panel **`Kuota & Data`** memungkinkan pengaturan batas kuota dalam **`MB`** per perangkat (`0` = Tanpa Batas); saat kuota tercapai, perangkat otomatis diblokir hingga kuota dinaikkan atau tombol **`Reset`** ditekan.
+
+### 7. Label Kustom & Penyimpanan Otomatis Permanen
+- Nama label kustom per MAC Address dapat diedit langsung dari tabel.
+- Pengaturan **`Batas (KB/s)`**, status **`Spoof`**, **`Blokir`**, batas **`Kuota (MB)`**, serta **ukuran & status Maximize jendela** tersimpan otomatis dan dipulihkan saat NetControl dibuka ulang.
+
+### 8. System Tray & Konfigurasi Autostart Gaya XAMPP (`Autostart`)
+- Dikompilasi sebagai aplikasi GUI murni (`WinExe`) tanpa memunculkan jendela konsol hitam saat *startup*.
+- Klik **`—` (Minimize)**, **`X` (Silang)**, atau tombol **`Ke Tray`** akan menyembunyikan NetControl ke System Tray; keluar penuh dan pemulihan ARP dilakukan lewat klik kanan ikon tray → **`Keluar & Pulihkan Jaringan`**.
+- Tab **`Autostart`** menyediakan opsi:
+  - **Jalankan saat Windows login (Admin)** via Windows Task Scheduler (`NetControl_Autostart`, hak *HighestAvailable* tanpa popup UAC, aktif di daya baterai).
+  - **Mulai tersembunyi di System Tray** saat diluncurkan via Autostart.
+  - **Otomatis Pindai Jaringan** (menunggu koneksi Wi-Fi/LAN siap maksimal 30 detik sebelum memindai).
+  - **Otomatis nyalakan ARP Spoof setelah pindai** dengan pengaman **Khusus Router Rumah** (mencocokkan MAC Router tersimpan via **`Pakai Router Ini`** agar *Auto-Spoof* dilewati saat berada di jaringan publik).
+
+---
+
+## Arsitektur Modern & Dukungan Lintas Platform
+
+| Komponen | SelfishNet Lama (Legacy) | NetControl |
 | :--- | :--- | :--- |
-| **Runtime Framework** | .NET Framework 3.5 (Windows only) | **.NET 8.0 (LTS)** |
-| **User Interface** | Windows Forms (WinForms) | **Avalonia UI** (Cross-platform XAML) |
-| **Packet Capture Engine** | PcapNet / WinPcap | **SharpPcap** (over native `libpcap` / `Npcap`) |
-| **Platform Interoperability** | Native Windows P/Invoke (`user32.dll`, `gdi32.dll`) | **Managed Cross-Platform** APIs |
-| **Operating Systems** | Windows XP / 7 / 8 / 10 | **Linux (x64), Windows (x64), macOS (arm64 & x64)** |
-| **Packaging** | Manual installer | **Single-file self-contained binaries** |
+| **Framework Runtime** | .NET Framework 3.5 (Hanya Windows) | **.NET 8.0 (LTS)** |
+| **Antarmuka Pengguna** | Windows Forms (WinForms) | **Avalonia UI 11** (XAML Lintas Platform) |
+| **Mesin Penangkap Paket** | PcapNet / WinPcap | **SharpPcap** (di atas `libpcap` / `Npcap` asli) |
+| **Penerusan & Pembatasan** | Hook Windows Native | **User-Space Layer-2 Relay + `TokenBucketThrottler`** |
+| **Sistem Operasi** | Windows XP / 7 / 8 / 10 | **Windows (x64), Linux (x64), macOS (arm64 & x64)** |
+| **Pemaketan** | Pemasang manual | **Biner mandiri satu berkas (*Single-file self-contained*)** |
 
 ---
 
-## Standalone Release Packages
+## Lokasi Berkas Konfigurasi Lokal
 
-Standalone release archives do **not** require the .NET SDK or runtime to be pre-installed. All runtime dependencies and native graphics libraries are bundled directly into the distribution.
+NetControl menyimpan seluruh konfigurasi secara lokal di `%LocalAppData%\NetControl\` (Windows) agar aturan tidak hilang saat aplikasi ditutup atau diperbarui:
 
-### 1. Linux (x86_64)
-
-- **Package:** `NetControl-linux-x64.tar.gz`
-- **Prerequisites:**
-  - `libpcap` runtime (installed by default on most distributions; on Ubuntu/Debian: `sudo apt install libpcap0.8` or `sudo apt install libpcap-dev`).
-- **Execution:**
-  - Launch with graphical superuser elevation:
-    ```bash
-    pkexec ./NetControl
-    ```
-    or via terminal:
-    ```bash
-    sudo -E ./NetControl
-    ```
-  - **Running without sudo (Linux Capabilities):** You can assign network capabilities directly to the binary to run as an unprivileged user:
-    ```bash
-    sudo setcap cap_net_raw,cap_net_admin=eip ./NetControl
-    ./NetControl
-    ```
-- **Desktop Application Launcher (Optional):**
-  The Linux release archive includes `netcontrol.desktop` and `netcontrol.png`. To register the application in your desktop environment (GNOME, KDE, XFCE):
-  ```bash
-  mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/256x256/apps
-  cp netcontrol.desktop ~/.local/share/applications/
-  cp netcontrol.png ~/.local/share/icons/hicolor/256x256/apps/netcontrol.png
-  update-desktop-database ~/.local/share/applications/
-  ```
-- **IP Packet Forwarding (Kernel):** Enable packet routing so traffic passes uninterrupted through your machine during diagnostics:
-  ```bash
-  sudo sysctl -w net.ipv4.ip_forward=1
-  ```
+| Berkas | Fungsi |
+| :--- | :--- |
+| `app_settings.json` | Opsi Autostart, interface pilihan, MAC Router Rumah, System Tray, ukuran jendela |
+| `device_labels.json` | Nama label kustom perangkat berdasarkan MAC Address |
+| `device_settings.json` | Profil permanen `Batas (KB/s)`, `Spoof`, `Blokir`, dan `Kuota (MB)` per MAC |
+| `blocked_domains.json` | Daftar blokir domain/website (global dan per perangkat) |
+| `block_schedules.json` | Aturan jadwal harian dan timer blokir aktif |
 
 ---
 
-### 2. Windows (x86_64)
+## Paket Rilis Mandiri (Standalone)
 
-- **Package:** `NetControl-windows-x64.zip`
-- **Prerequisites:**
-  - **Npcap Driver:** Download and install Npcap from [npcap.com](https://npcap.com).
-  - **CRITICAL:** During the Npcap installation wizard, you must check the option:
-    **"Install Npcap in WinPcap API-compatible Mode"**. This ensures `wpcap.dll` and `packet.dll` are accessible to SharpPcap.
-- **Execution:**
-  1. Extract `NetControl-windows-x64.zip`.
-  2. Right-click on `NetControl.exe`.
-  3. Select **"Run as administrator"**. Elevated User Account Control (UAC) permissions are mandatory on Windows to open raw network adapters.
+Arsip rilis pada halaman [Releases](https://github.com/rizumiya/NetControl/releases) **tidak memerlukan .NET SDK/Runtime** terpasang karena seluruh dependensi sudah dibundel di dalamnya.
 
----
+### 1. Windows (`x86_64`)
+- **Paket:** `NetControl-windows-x64.zip`
+- **Prasyarat:**
+  - Pasang **Npcap** dari [npcap.com](https://npcap.com).
+  - **PENTING:** Saat instalasi Npcap, **wajib centang opsi `"Install Npcap in WinPcap API-compatible Mode"`** agar `wpcap.dll` dan `packet.dll` dapat diakses oleh SharpPcap.
+- **Eksekusi:**
+  1. Ekstrak `NetControl-windows-x64.zip`.
+  2. Klik kanan `NetControl.exe` → **"Run as administrator"** (wajib izin Administrator untuk akses adapter jaringan & pendaftaran Task Scheduler Autostart).
 
-### 3. macOS (Apple Silicon arm64 & Intel x64)
-
-- **Packages:**
-  - Apple Silicon (M1, M2, M3, M4): `NetControl-macos-arm64.tar.gz`
-  - Intel x86_64: `NetControl-macos-x64.tar.gz`
-- **Prerequisites:**
-  - macOS 11.0 (Big Sur) or later.
-  - Native Berkeley Packet Filter (BPF) capture requires root access.
-- **Execution:**
-  1. Extract the archive:
-     ```bash
-     tar -xzf NetControl-macos-arm64.tar.gz
-     cd dist/osx-arm64
-     ```
-  2. If macOS Gatekeeper marks the unnotarized binary as quarantined:
-     ```bash
-     xattr -d com.apple.quarantine ./NetControl
-     ```
-  3. Grant executable permissions:
-     ```bash
-     chmod +x ./NetControl
-     ```
-  4. Launch with root privileges:
-     ```bash
-     sudo ./NetControl
-     ```
-- **IP Packet Forwarding:**
+### 2. Linux (`x86_64`)
+- **Paket:** `NetControl-linux-x64.tar.gz`
+- **Prasyarat:** Runtime `libpcap` (Ubuntu/Debian: `sudo apt install libpcap0.8` atau `libpcap-dev`).
+- **Eksekusi:**
   ```bash
-  sudo sysctl -w net.inet.ip.forwarding=1
+  pkexec ./NetControl
+  # atau
+  sudo -E ./NetControl
+  ```
+  Untuk menjalankan tanpa `sudo` setiap kali dibuka:
+  ```bash
+  sudo setcap cap_net_raw,cap_net_admin=eip ./NetControl
+  ./NetControl
   ```
 
----
-
-## Cryptographic Verification
-
-Verify the integrity of downloaded distribution packages using SHA-256:
-
-- **Linux / macOS:**
+### 3. macOS (`Apple Silicon arm64` & `Intel x64`)
+- **Paket:** `NetControl-macos-arm64.tar.gz` (M1–M4) / `NetControl-macos-x64.tar.gz` (Intel)
+- **Prasyarat:** macOS 11.0 (Big Sur) atau lebih baru.
+- **Eksekusi:**
   ```bash
-  sha256sum -c SHA256SUMS
+  tar -xzf NetControl-macos-arm64.tar.gz
+  xattr -d com.apple.quarantine ./NetControl
+  chmod +x ./NetControl
+  sudo ./NetControl
   ```
+
+### Verifikasi Integritas Kriptografi
+Verifikasi keaslian berkas rilis menggunakan berkas `SHA256SUMS`:
 - **Windows (PowerShell):**
   ```powershell
   Get-FileHash .\NetControl-windows-x64.zip -Algorithm SHA256
   ```
-
----
-
-## Building from Source
-
-### Prerequisites
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Platform network drivers (`libpcap-dev` on Linux, Npcap on Windows)
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/nov0caina/NetControl.git
-cd NetControl
-```
-
-### 2. Build and Run
-```bash
-# Build entire solution (produces NetControl binary)
-dotnet build NetControl.sln
-
-# Run application locally
-dotnet run --project NetControl/NetControl.csproj
-```
-
-### 3. Run Automated Tests
-The repository includes an automated test suite covering concurrency, rate calculation, OUI lookups, heuristic classification, and boundary conditions:
-```bash
-dotnet test NetControl.sln
-```
-
-### 4. Publish Standalone Binaries
-To compile single-file, self-contained binaries for target platforms:
-
-```bash
-# Linux x64 (produces dist/linux-x64/NetControl)
-dotnet publish NetControl/NetControl.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/linux-x64
-
-# Windows x64 (produces dist/win-x64/NetControl.exe)
-dotnet publish NetControl/NetControl.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/win-x64
-
-# macOS Apple Silicon (produces dist/osx-arm64/NetControl)
-dotnet publish NetControl/NetControl.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/osx-arm64
-
-# macOS Intel (produces dist/osx-x64/NetControl)
-dotnet publish NetControl/NetControl.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/osx-x64
-```
-
----
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-_____________________________________________________________________________________________________________________________________
-
-# NetControl (Guia en Espanol)
-
-Herramienta multiplataforma para diagnostico de ancho de banda, descubrimiento de dispositivos y gestion de trafico ARP en redes locales. El sucesor moderno de SelfishNet, desarrollada con .NET 8 y Avalonia UI.
-
-> [!WARNING]
-> **Aviso Oficial de Seguridad:** Este repositorio (`https://github.com/nov0caina/NetControl`) es la **unica fuente oficial** para el codigo moderno de NetControl. Los dominios de terceros (como `selfishnet.org` y otros sitios no autorizados) no tienen relacion alguna con este proyecto, redistribuyen versiones no autorizadas y pueden contener malware o riesgos de seguridad. No descargues ni ejecutes binarios procedentes de sitios no verificados.
-
-> [!IMPORTANT]
-> **Uso Etico y Responsable:** NetControl esta disenado estrictamente para tareas de diagnostico, administracion de red e investigacion academica en entornos de laboratorio controlados. La manipulacion de tablas ARP o la interceptacion de paquetes en redes sin el consentimiento previo y formal del propietario es ilegal y no etica.
-
----
-
-## Arquitectura Moderna y Soporte Multiplataforma
-
-NetControl fue redisenado completamente para eliminar las dependencias heredadas exclusivas de Windows (.NET Framework 3.5, WinForms, WinPcap y llamadas P/Invoke a `user32.dll`) reemplazandolas por una arquitectura moderna y verdaderamente multiplataforma.
-
-| Componente | SelfishNet Original (Legacy) | NetControl |
-| :--- | :--- | :--- |
-| **Framework Base** | .NET Framework 3.5 (Solo Windows) | **.NET 8.0 (LTS)** |
-| **Interfaz de Usuario** | Windows Forms (WinForms) | **Avalonia UI** (XAML Multiplataforma) |
-| **Motor de Captura** | PcapNet / WinPcap | **SharpPcap** (sobre `libpcap` / `Npcap`) |
-| **Interoperabilidad** | P/Invoke nativo (`user32.dll`, `gdi32.dll`) | **Managed Multiplataforma** |
-| **Sistemas Soportados**| Windows XP / 7 / 8 / 10 | **Linux (x64), Windows (x64), macOS (arm64 y x64)** |
-| **Distribucion** | Instalador tradicional | **Binarios autocontenidos en un unico archivo** |
-
----
-
-## Paquetes Precompilados (Standalone)
-
-Los paquetes de distribucion precompilados **no** requieren tener instalado el SDK ni el runtime de .NET. Incluyen todas las dependencias y librerias graficas necesarias.
-
-### 1. Linux (x86_64)
-
-- **Paquete:** `NetControl-linux-x64.tar.gz`
-- **Prerrequisitos:**
-  - Libreria `libpcap` (instalada por defecto en la gran mayoria de distribuciones; en Ubuntu/Debian: `sudo apt install libpcap0.8` o `sudo apt install libpcap-dev`).
-- **Ejecucion:**
-  - Ejecutar con elevacion grafica:
-    ```bash
-    pkexec ./NetControl
-    ```
-    o desde la terminal:
-    ```bash
-    sudo -E ./NetControl
-    ```
-  - **Ejecucion sin sudo (Capacidades de Linux):** Puedes asignar las capacidades de red al binario para ejecutarlo como usuario estandar:
-    ```bash
-    sudo setcap cap_net_raw,cap_net_admin=eip ./NetControl
-    ./NetControl
-    ```
-- **Lanzador de Escritorio (Opcional):**
-  El archivo descargable incluye `netcontrol.desktop` y `netcontrol.png`. Para integrarlo en el menu de aplicaciones de tu escritorio (GNOME, KDE, XFCE):
-  ```bash
-  mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/256x256/apps
-  cp netcontrol.desktop ~/.local/share/applications/
-  cp netcontrol.png ~/.local/share/icons/hicolor/256x256/apps/netcontrol.png
-  update-desktop-database ~/.local/share/applications/
-  ```
-- **Reenvio de Paquetes IP:** Habilita el reenvio en el kernel para permitir el enrutamiento continuo durante el diagnostico:
-  ```bash
-  sudo sysctl -w net.ipv4.ip_forward=1
-  ```
-
----
-
-### 2. Windows (x86_64)
-
-- **Paquete:** `NetControl-windows-x64.zip`
-- **Prerrequisitos:**
-  - **Driver Npcap:** Descargar e instalar Npcap desde [npcap.com](https://npcap.com).
-  - **IMPORTANTE:** Durante la instalacion, debes marcar obligatoriamente la casilla:
-    **"Install Npcap in WinPcap API-compatible Mode"**. Esto provee los controladores `wpcap.dll` y `packet.dll` necesarios para SharpPcap.
-- **Ejecucion:**
-  1. Descomprime `NetControl-windows-x64.zip`.
-  2. Haz clic derecho sobre `NetControl.exe`.
-  3. Selecciona **"Ejecutar como administrador"** (es imprescindible contar con permisos elevados UAC para acceder a las interfaces de red en Windows).
-
----
-
-### 3. macOS (Apple Silicon arm64 e Intel x64)
-
-- **Paquetes:**
-  - Apple Silicon (M1, M2, M3, M4): `NetControl-macos-arm64.tar.gz`
-  - Intel x86_64: `NetControl-macos-x64.tar.gz`
-- **Prerrequisitos:**
-  - macOS 11.0 (Big Sur) o superior.
-  - Permisos de superusuario para acceso a los dispositivos de captura BPF (Berkeley Packet Filter).
-- **Ejecucion:**
-  1. Descomprime el paquete:
-     ```bash
-     tar -xzf NetControl-macos-arm64.tar.gz
-     cd dist/osx-arm64
-     ```
-  2. Si macOS Gatekeeper bloquea el binario por no estar notarizado:
-     ```bash
-     xattr -d com.apple.quarantine ./NetControl
-     ```
-  3. Asegura permisos de ejecucion:
-     ```bash
-     chmod +x ./NetControl
-     ```
-  4. Ejecuta con permisos de superusuario:
-     ```bash
-     sudo ./NetControl
-     ```
-- **Reenvio de Paquetes IP:**
-  ```bash
-  sudo sysctl -w net.inet.ip.forwarding=1
-  ```
-
----
-
-## Verificacion de Integridad Criptografica
-
-Verifica la autenticidad e integridad de los paquetes descargados con SHA-256:
-
 - **Linux / macOS:**
   ```bash
   sha256sum -c SHA256SUMS
   ```
-- **Windows (PowerShell):**
-  ```powershell
-  Get-FileHash .\NetControl-windows-x64.zip -Algorithm SHA256
-  ```
 
 ---
 
-## Compilacion desde el Codigo Fuente
+## Kompilasi dari Kode Sumber
 
-### Prerrequisitos
+### Prasyarat
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Librerias de captura del sistema (`libpcap-dev` en Linux, Npcap en Windows)
+- Driver penangkap paket platform (`Npcap` WinPcap-compatible mode di Windows, `libpcap-dev` di Linux)
 
-### 1. Clonar el Repositorio
+### 1. Kloning Repositori
 ```bash
-git clone https://github.com/nov0caina/NetControl.git
+git clone https://github.com/rizumiya/NetControl.git
 cd NetControl
 ```
 
-### 2. Compilar y Ejecutar
-```bash
-# Compilar la solucion completa (genera el binario NetControl)
-dotnet build NetControl.sln
+### 2. Instalasi & Jalankan (Cara Cepat Windows)
+- Jalankan **`install_windows.bat`** untuk memeriksa .NET 8 SDK, memulihkan paket, dan membangun build *Release*.
+- Jalankan **`start_windows.bat`** untuk membuka NetControl sebagai Administrator.
 
-# Ejecutar el proyecto en desarrollo
-dotnet run --project NetControl/NetControl.csproj
+### 3. Build, Jalankan, & Uji Otomatis via CLI
+Proyek ini dilengkapi **52 unit test** (perhitungan subnet, akurasi rate, identifikasi OUI, isolasi aturan blokir domain, TLS SNI/DNS parser, jadwal/timer, kuota data, filter ARP Probe, dan validasi konfigurasi Autostart):
+
+```bash
+# Bangun seluruh solusi dalam mode Release
+dotnet build NetControl.sln -c Release
+
+# Jalankan seluruh 52 unit test
+dotnet test NetControl.sln -c Release
+
+# Jalankan aplikasi (memerlukan hak Administrator / root)
+dotnet run --project NetControl/NetControl.csproj -c Release
 ```
 
-### 3. Ejecutar Pruebas Automatizadas
-El repositorio contiene pruebas automatizadas para validar acumuladores concurrentes, calculo de tasas, resolucion OUI y clasificaciones heurísticas:
+### 4. Publikasi Biner Mandiri (Standalone)
 ```bash
-dotnet test NetControl.sln
+# Windows x64
+dotnet publish NetControl/NetControl.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/win-x64
+
+# Linux x64
+dotnet publish NetControl/NetControl.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/linux-x64
+
+# macOS Apple Silicon (arm64)
+dotnet publish NetControl/NetControl.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/osx-arm64
+
+# macOS Intel (x64)
+dotnet publish NetControl/NetControl.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/osx-x64
 ```
 
 ---
 
-## Licencia
+## Lisensi
 
-Este proyecto esta bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para mas informacion.
+Proyek ini dilisensikan di bawah Lisensi MIT. Lihat berkas [LICENSE](LICENSE) untuk detail selengkapnya.

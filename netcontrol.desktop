@@ -2,8 +2,10 @@
 Version=1.0
 Type=Application
 Name=NetControl
-GenericName=Network Traffic Manager
-Comment=Cross-platform bandwidth diagnostics, device discovery, and ARP traffic management
+GenericName=Pengelola Lalu Lintas Jaringan
+GenericName[id]=Pengelola Lalu Lintas Jaringan
+Comment=Diagnostik bandwidth, penemuan perangkat, dan manajemen lalu lintas ARP lintas platform
+Comment[id]=Diagnostik bandwidth, penemuan perangkat, dan manajemen lalu lintas ARP lintas platform
 Icon=netcontrol
 Exec=sh -c "pkexec env DISPLAY=\$DISPLAY XAUTHORITY=\$XAUTHORITY /usr/local/bin/NetControl"
 Terminal=false

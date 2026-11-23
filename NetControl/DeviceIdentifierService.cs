@@ -686,12 +686,12 @@ namespace NetControl
                 // Open a separate handle to avoid filter conflicts with ARP listener
                 _mdnsDevice = new LibPcapLiveDevice(_nic.Interface);
                 _mdnsDevice.Open(DeviceModes.Promiscuous, 500);
-                _mdnsDevice.Filter = "udp port 5353";
+                _mdnsDevice.Filter = "udp port 5353 or udp port 67 or udp port 68";
 
                 _isMdnsListening = true;
                 _mdnsThread = new Thread(MdnsListenerLoop) { IsBackground = true };
                 _mdnsThread.Start();
-                Console.WriteLine("[INFO] mDNS passive listener started.");
+                Console.WriteLine("[INFO] mDNS & DHCP passive listener started.");
             }
             catch (Exception ex)
             {
@@ -722,16 +722,35 @@ namespace NetControl
                     if (status != GetPacketStatus.PacketRead) continue;
 
                     var raw = capture.GetPacket().Data;
-                    // Minimum: 14 (eth) + 20 (ip) + 8 (udp) + 12 (dns header) = 54
-                    if (raw.Length < 54) continue;
+                    // Minimum: 14 (eth) + 20 (ip) + 8 (udp) = 42
+                    if (raw == null || raw.Length < 42) continue;
+
+                    // Verify IPv4 (0x0800) and UDP (17)
+                    if (raw[12] != 0x08 || raw[13] != 0x00 || raw[23] != 17) continue;
+
+                    int ipHeaderLen = (raw[14] & 0x0F) * 4;
+                    if (ipHeaderLen < 20 || 14 + ipHeaderLen + 8 > raw.Length) continue;
+
+                    int udpOffset = 14 + ipHeaderLen;
+                    ushort srcPort = (ushort)((raw[udpOffset] << 8) | raw[udpOffset + 1]);
+                    ushort dstPort = (ushort)((raw[udpOffset + 2] << 8) | raw[udpOffset + 3]);
+                    int payloadOffset = udpOffset + 8;
+
+                    // DHCP Option 12 (Host Name) passive capture (UDP ports 67 / 68)
+                    if (srcPort == 67 || srcPort == 68 || dstPort == 67 || dstPort == 68)
+                    {
+                        TryHandleDhcpPacket(raw, payloadOffset);
+                        continue;
+                    }
+
+                    if (srcPort != 5353 && dstPort != 5353) continue;
 
                     // Extract source IP from IP header (offset 26)
                     byte[] srcIp = new byte[4];
                     Array.Copy(raw, 26, srcIp, 0, 4);
 
                     // Parse mDNS response for hostnames
-                    // DNS payload starts at offset 42 (14 eth + 20 ip + 8 udp)
-                    string name = TryParseMdnsName(raw, 42);
+                    string name = TryParseMdnsName(raw, payloadOffset);
                     if (string.IsNullOrEmpty(name)) continue;
 
                     // Find matching device and update hostname
@@ -753,15 +772,105 @@ namespace NetControl
         }
 
         /// <summary>
-        /// Extracts the first query/answer name from an mDNS packet.
-        /// Parses DNS name labels (length-prefixed) from raw bytes.
+        /// Parses a passive DHCP packet (BOOTP/DHCP) to extract Client MAC and Option 12 (Host Name).
+        /// </summary>
+        private void TryHandleDhcpPacket(byte[] raw, int dhcpOffset)
+        {
+            // BOOTP header (236 bytes) + magic cookie (4 bytes) = 240 bytes
+            if (raw.Length < dhcpOffset + 240) return;
+
+            byte op = raw[dhcpOffset];
+            byte htype = raw[dhcpOffset + 1];
+            byte hlen = raw[dhcpOffset + 2];
+            if (op != 1 || htype != 1 || hlen != 6) return;
+
+            // Verify DHCP magic cookie (99.130.83.99)
+            int cookieOffset = dhcpOffset + 236;
+            if (raw[cookieOffset] != 0x63 || raw[cookieOffset + 1] != 0x82 ||
+                raw[cookieOffset + 2] != 0x53 || raw[cookieOffset + 3] != 0x63)
+            {
+                return;
+            }
+
+            byte[] clientMac = new byte[6];
+            Array.Copy(raw, dhcpOffset + 28, clientMac, 0, 6);
+
+            byte[] ciaddr = new byte[4];
+            Array.Copy(raw, dhcpOffset + 12, ciaddr, 0, 4);
+
+            string hostName = null;
+            byte[] requestedIp = null;
+
+            int pos = dhcpOffset + 240;
+            while (pos < raw.Length)
+            {
+                byte opt = raw[pos++];
+                if (opt == 255) break; // End
+                if (opt == 0) continue; // Pad
+
+                if (pos >= raw.Length) break;
+                byte len = raw[pos++];
+                if (pos + len > raw.Length) break;
+
+                if (opt == 12 && len > 0)
+                {
+                    hostName = Encoding.UTF8.GetString(raw, pos, len).Trim('\0', ' ');
+                }
+                else if (opt == 50 && len == 4)
+                {
+                    requestedIp = new byte[4];
+                    Array.Copy(raw, pos, requestedIp, 0, 4);
+                }
+
+                pos += len;
+            }
+
+            if (string.IsNullOrWhiteSpace(hostName) ||
+                hostName.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                IPAddress.TryParse(hostName, out _))
+            {
+                return;
+            }
+
+            PC device = _pcList.GetDeviceByMac(clientMac);
+            if (device == null && requestedIp != null)
+            {
+                device = _pcList.GetDeviceByIp(requestedIp);
+            }
+            if (device == null && (ciaddr[0] | ciaddr[1] | ciaddr[2] | ciaddr[3]) != 0)
+            {
+                device = _pcList.GetDeviceByIp(ciaddr);
+            }
+
+            if (device != null && string.IsNullOrEmpty(device.Hostname))
+            {
+                device.Hostname = hostName;
+                device.DeviceCategory = InferDeviceType(device);
+                Console.WriteLine($"[DHCP] {device.Ip}: {hostName}");
+            }
+        }
+
+        /// <summary>
+        /// Extracts the hostname from an mDNS response packet.
+        /// Ignores mDNS queries (QR == 0) and service-type prefixes starting with '_' so clients
+        /// searching for services (like _googlecast) are never misidentified as that device type.
         /// </summary>
         private static string TryParseMdnsName(byte[] raw, int dnsOffset)
         {
             if (raw.Length <= dnsOffset + 12) return null;
 
-            // Skip DNS header (12 bytes) to reach first question/answer
+            // Only parse mDNS Responses (QR bit == 1) with at least one Answer record (ANCOUNT > 0)
+            bool isResponse = (raw[dnsOffset + 2] & 0x80) != 0;
+            int qdCount = (raw[dnsOffset + 4] << 8) | raw[dnsOffset + 5];
+            int anCount = (raw[dnsOffset + 6] << 8) | raw[dnsOffset + 7];
+            if (!isResponse || anCount == 0) return null;
+
             int pos = dnsOffset + 12;
+            for (int q = 0; q < qdCount && pos < raw.Length; q++)
+            {
+                pos = SkipDnsName(raw, pos);
+                pos += 4;
+            }
             if (pos >= raw.Length) return null;
 
             // Read DNS name labels
@@ -798,6 +907,12 @@ namespace NetControl
                 return null;
             }
 
+            // Ignore service-type names starting with '_' (e.g., "_googlecast._tcp.local", "_services._dns-sd")
+            if (fullName.StartsWith("_", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
             // Extract friendly name: "iPhone-de-Carlos._companion-link._tcp.local" → "iPhone-de-Carlos"
             // Remove service type suffixes
             int serviceIdx = fullName.IndexOf("._", StringComparison.Ordinal);
@@ -813,10 +928,9 @@ namespace NetControl
             }
 
             string result = fullName.Trim();
-            if (string.Equals(result, "_googlecast", StringComparison.OrdinalIgnoreCase) ||
-                result.EndsWith("googlecast", StringComparison.OrdinalIgnoreCase))
+            if (result.StartsWith("_", StringComparison.Ordinal))
             {
-                return "Chromecast / Google Cast";
+                return null;
             }
 
             return result.Length > 0 ? result : null;
